@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm install --production
 
 COPY . .
-RUN npx prisma generate --ignore-engines
+RUN npx prisma generate --no-engine
 
 EXPOSE 3000
 
