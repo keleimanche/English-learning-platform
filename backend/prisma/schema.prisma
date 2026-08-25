@@ -1,0 +1,76 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  wrongWords    WrongWord[]
+  writings      Writing[]
+  exercises     Exercise[]
+  stats         LearningStats?
+}
+
+model WrongWord {
+  id          String   @id @default(cuid())
+  word        String
+  meaning     String
+  phonetic    String?  // 音标
+  frequency   Int      @default(1) // 错误次数
+  lastErrorAt DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, word]) // 同一用户不能重复记录相同单词
+  @@index([userId, frequency]) // 优化查询
+}
+
+model Writing {
+  id          String   @id @default(cuid())
+  title       String?
+  content     String   @db.Text
+  aiFeedback  Json?    // 存储AI返回的完整反馈
+  score       Float?   // 评分
+  wordCount   Int?
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+}
+
+model Exercise {
+  id          String   @id @default(cuid())
+  type        String   // 'reading', 'cloze', 'dictation'
+  content     Json     // 题目内容（结构化存储）
+  targetWords String[] // 包含的目标词汇
+  difficulty  Int      // 1-5 难度等级
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 学习统计（冗余表，提升查询性能）
+model LearningStats {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalWords    Int      @default(0)
+  totalWritings Int      @default(0)
+  avgScore      Float?   @default(0)
+  streak        Int      @default(0) // 连续学习天数
+  lastStudyDate DateTime?
+  updatedAt     DateTime @updatedAt
+}

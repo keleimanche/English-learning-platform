@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英语学习平台 - 错词本 · AI写作批改 · 智能出题</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    [v-cloak] { display: none; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+    .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
+    .slide-enter-from { opacity: 0; transform: translateX(20px); }
+    .slide-leave-to { opacity: 0; transform: translateX(-20px); }
+    @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .shimmer { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div id="app" v-cloak>
+
+    <!-- ========== 登录/注册页面 ========== -->
+    <div v-if="!isLoggedIn" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg shadow-indigo-200">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+          <h1 class="text-3xl font-bold text-slate-800">英语学习平台</h1>
+          <p class="text-slate-500 mt-2">错词本 · AI写作批改 · 智能出题</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+          <div class="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl">
+            <button @click="authMode = 'login'" :class="authMode === 'login' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'" class="flex-1 py-2 rounded-lg font-medium transition-all">登录</button>
+            <button @click="authMode = 'register'" :class="authMode === 'register' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'" class="flex-1 py-2 rounded-lg font-medium transition-all">注册</button>
+          </div>
+
+          <form @submit.prevent="handleAuth" class="space-y-4">
+            <div v-if="authMode === 'register'">
+              <label class="block text-sm font-medium text-slate-700 mb-1">姓名</label>
+              <input v-model="authForm.name" type="text" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all" placeholder="你的名字">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">邮箱</label>
+              <input v-model="authForm.email" type="email" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all" placeholder="you@example.com">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">密码</label>
+              <input v-model="authForm.password" type="password" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all" placeholder="••••••••">
+            </div>
+            <div v-if="authError" class="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{{ authError }}</div>
+            <button type="submit" :disabled="authLoading" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-indigo-200 transition-all disabled:opacity-50">
+              <span v-if="authLoading">处理中...</span>
+              <span v-else>{{ authMode === 'login' ? '登录' : '注册' }}</span>
+            </button>
+          </form>
+        </div>
+        <p class="text-center text-slate-400 text-sm mt-6">让每一次错误都成为进步的阶梯</p>
+      </div>
+    </div>
+
+    <!-- ========== 主应用 ========== -->
+    <div v-else>
+      <!-- 顶部导航 -->
+      <header class="bg-white border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md bg-white/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+          <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+              </div>
+              <span class="font-bold text-slate-800 text-lg">英语学习平台</span>
+            </div>
+
+            <nav class="hidden md:flex items-center gap-1">
+              <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
+                :class="currentTab === tab.id ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'"
+                class="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                <span v-html="tab.icon"></span>
+                {{ tab.label }}
+              </button>
+            </nav>
+
+            <div class="flex items-center gap-3">
+              <div class="hidden sm:flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg">
+                <span class="text-orange-500">🔥</span>
+                <span class="text-sm font-medium text-orange-700">{{ stats.streak || 0 }} 天</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {{ user?.name?.[0] || 'U' }}
+                </div>
+                <button @click="logout" class="text-slate-400 hover:text-red-500 transition-colors" title="退出登录">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 移动端导航 -->
+          <nav class="md:hidden flex items-center gap-1 pb-3 overflow-x-auto">
+            <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
+              :class="currentTab === tab.id ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600'"
+              class="px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap text-sm flex items-center gap-1.5">
+              <span v-html="tab.icon"></span>
+              {{ tab.label }}
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+        <!-- ====== 仪表盘 ====== -->
+        <section v-if="currentTab === 'dashboard'" class="space-y-6">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-sm">错词总数</span>
+                <span class="text-2xl">📚</span>
+              </div>
+              <div class="text-3xl font-bold text-slate-800">{{ stats.totalWords || 0 }}</div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-sm">写作篇数</span>
+                <span class="text-2xl">✍️</span>
+              </div>
+              <div class="text-3xl font-bold text-slate-800">{{ stats.totalWritings || 0 }}</div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-sm">平均分</span>
+                <span class="text-2xl">⭐</span>
+              </div>
+              <div class="text-3xl font-bold text-slate-800">{{ (stats.avgScore || 0).toFixed(1) }}</div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-sm">连续学习</span>
+                <span class="text-2xl">🔥</span>
+              </div>
+              <div class="text-3xl font-bold text-slate-800">{{ stats.streak || 0 }} <span class="text-base font-normal text-slate-500">天</span></div>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-6">
+            <!-- 写作进步曲线 -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+              <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <span>📈</span> 写作进步曲线
+              </h3>
+              <div v-if="stats.recentWritings?.length" class="relative h-48">
+                <svg class="w-full h-full" viewBox="0 0 400 180" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <polyline :points="scoreChartPoints" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                  <polygon :points="scoreChartArea" fill="url(#scoreGradient)"/>
+                  <circle v-for="(pt, i) in scoreChartCoords" :key="i" :cx="pt.x" :cy="pt.y" r="4" fill="#6366f1" stroke="white" stroke-width="2"/>
+                </svg>
+                <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-400 px-1">
+                  <span>较早</span>
+                  <span>最近</span>
+                </div>
+              </div>
+              <div v-else class="h-48 flex items-center justify-center text-slate-400">
+                <div class="text-center">
+                  <span class="text-4xl block mb-2">📝</span>
+                  还没有写作记录，去写第一篇吧！
+                </div>
+              </div>
+            </div>
+
+            <!-- 高频错词 -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+              <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <span>⚠️</span> 高频错词 TOP 5
+              </h3>
+              <div v-if="stats.highFrequencyWords?.length" class="space-y-3">
+                <div v-for="(w, i) in stats.highFrequencyWords" :key="i" class="flex items-center gap-3">
+                  <div class="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-sm font-bold">{{ i + 1 }}</div>
+                  <div class="flex-1">
+                    <div class="font-medium text-slate-800">{{ w.word }}</div>
+                    <div class="text-xs text-slate-500 truncate">{{ w.meaning }}</div>
+                  </div>
+                  <div class="text-sm font-medium text-red-500 bg-red-50 px-2 py-1 rounded-lg">×{{ w.frequency }}</div>
+                </div>
+              </div>
+              <div v-else class="h-48 flex items-center justify-center text-slate-400">
+                <div class="text-center">
+                  <span class="text-4xl block mb-2">🎯</span>
+                  还没有错词，继续保持！
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== 错词本 ====== -->
+        <section v-if="currentTab === 'words'" class="space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input v-model="newWord" @keyup.enter="addWord" type="text" placeholder="输入记错的单词，如 abandon"
+                class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none">
+              <button @click="addWord" :disabled="loading.words"
+                class="px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                <span v-if="loading.words">添加中...</span>
+                <template v-else><span>＋</span> 添加错词</template>
+              </button>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">💡 添加后会自动查询词义和音标，重复添加会增加错误频率</p>
+          </div>
+
+          <div v-if="wrongWords.length === 0 && !loading.words" class="bg-white rounded-2xl p-12 border border-slate-100 text-center">
+            <span class="text-6xl block mb-4">📖</span>
+            <h3 class="text-lg font-semibold text-slate-700 mb-2">错词本是空的</h3>
+            <p class="text-slate-500">添加你记错的单词，系统会自动生成词义和听写测试</p>
+          </div>
+
+          <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="word in wrongWords" :key="word.id" class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+              <div class="flex items-start justify-between mb-2">
+                <div>
+                  <h4 class="font-bold text-lg text-slate-800">{{ word.word }}</h4>
+                  <p v-if="word.phonetic" class="text-sm text-indigo-500 font-mono">{{ word.phonetic }}</p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span v-if="word.frequency > 1" class="text-xs font-medium text-red-500 bg-red-50 px-2 py-1 rounded-lg">×{{ word.frequency }}</span>
+                  <button @click="deleteWord(word.id)" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="text-sm text-slate-600 leading-relaxed mb-3 line-clamp-3" :title="word.meaning">{{ word.meaning }}</p>
+              <div class="flex gap-2">
+                <button @click="speakWord(word.word)" class="flex-1 py-1.5 text-sm bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                  朗读
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== 听写测试 ====== -->
+        <section v-if="currentTab === 'dictation'" class="space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="font-semibold text-slate-800 mb-4">听写测试设置</h3>
+            <div class="flex flex-col sm:flex-row gap-4 items-end">
+              <div class="flex-1">
+                <label class="block text-sm text-slate-600 mb-1">单词数量</label>
+                <input v-model.number="dictationConfig.count" type="number" min="5" max="50" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
+              </div>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input v-model="dictationConfig.onlyHighFrequency" type="checkbox" class="w-4 h-4 rounded text-indigo-500">
+                <span class="text-sm text-slate-600">仅高频错词</span>
+              </label>
+              <button @click="startDictation" :disabled="loading.dictation"
+                class="px-6 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all disabled:opacity-50">
+                {{ loading.dictation ? '生成中...' : '开始听写' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 听写进行中 -->
+          <div v-if="dictationExercise" class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="font-semibold text-slate-800">听写测试 ({{ dictationIndex + 1 }} / {{ dictationWords.length }})</h3>
+              <div class="w-32 bg-slate-100 rounded-full h-2">
+                <div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{ width: ((dictationIndex + 1) / dictationWords.length * 100) + '%' }"></div>
+              </div>
+            </div>
+
+            <div v-if="!dictationFinished" class="space-y-4">
+              <div class="bg-indigo-50 rounded-xl p-8 text-center">
+                <button @click="speakWord(dictationWords[dictationIndex].word)" class="w-20 h-20 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full mx-auto flex items-center justify-center transition-all hover:scale-105 shadow-lg shadow-indigo-200">
+                  <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                </button>
+                <p class="text-slate-500 mt-4 text-sm">点击按钮听单词，然后拼写出来</p>
+                <button @click="speakWord(dictationWords[dictationIndex].word)" class="mt-2 text-sm text-indigo-500 hover:underline">再听一次</button>
+                <p class="text-xs text-slate-400 mt-2">提示：{{ dictationWords[dictationIndex].meaning.slice(0, 30) }}...</p>
+              </div>
+
+              <input v-model="dictationAnswer" @keyup.enter="submitDictationAnswer"
+                :placeholder="`请拼写第 ${dictationIndex + 1} 个单词`" autofocus
+                class="w-full px-4 py-3 text-center text-lg font-mono rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none">
+
+              <button @click="submitDictationAnswer" class="w-full py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">
+                提交答案 (Enter)
+              </button>
+            </div>
+
+            <!-- 听写结果 -->
+            <div v-else class="space-y-4">
+              <div class="text-center mb-6">
+                <div class="text-5xl font-bold" :class="dictationScore >= 80 ? 'text-green-500' : dictationScore >= 60 ? 'text-orange-500' : 'text-red-500'">
+                  {{ dictationScore }}<span class="text-2xl">分</span>
+                </div>
+                <p class="text-slate-500 mt-2">答对 {{ dictationCorrect }} / {{ dictationWords.length }}</p>
+              </div>
+
+              <div class="space-y-2">
+                <div v-for="(r, i) in dictationResults" :key="i"
+                  :class="r.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'"
+                  class="rounded-xl p-3 border flex items-center justify-between">
+                  <div>
+                    <span class="font-mono font-medium text-slate-800">{{ r.word }}</span>
+                    <span v-if="!r.correct" class="text-red-500 text-sm ml-2">你的答案: {{ r.answer }}</span>
+                  </div>
+                  <span :class="r.correct ? 'text-green-500' : 'text-red-500'">{{ r.correct ? '✓' : '✗' }}</span>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <button @click="dictationExercise = null" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-all">关闭</button>
+                <button @click="startDictation" class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">再来一轮</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!dictationExercise && wrongWords.length > 0" class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 text-center border border-indigo-100">
+            <span class="text-5xl block mb-3">🎧</span>
+            <h3 class="text-lg font-semibold text-slate-700 mb-2">准备好听写了吗？</h3>
+            <p class="text-slate-500">系统会从你的错词本中随机抽取单词，朗读后让你拼写</p>
+          </div>
+        </section>
+
+        <!-- ====== 智能出题 ====== -->
+        <section v-if="currentTab === 'exercises'" class="space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="font-semibold text-slate-800 mb-4">智能出题</h3>
+            <p class="text-sm text-slate-500 mb-4">系统会根据你的错词本，利用 AI 生成包含这些单词的针对性练习</p>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <button @click="generateExercise('reading')" :disabled="loading.exercise"
+                class="p-5 bg-gradient-to-br from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 rounded-xl border border-blue-100 text-left transition-all disabled:opacity-50">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-2xl">📖</span>
+                  <span class="font-semibold text-slate-800">阅读理解</span>
+                </div>
+                <p class="text-sm text-slate-500">生成包含错词的阅读文章和选择题</p>
+              </button>
+              <button @click="generateExercise('cloze')" :disabled="loading.exercise"
+                class="p-5 bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-xl border border-purple-100 text-left transition-all disabled:opacity-50">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-2xl">✏️</span>
+                  <span class="font-semibold text-slate-800">完型填空</span>
+                </div>
+                <p class="text-sm text-slate-500">挖空错词位置，从选项中选择正确答案</p>
+              </button>
+            </div>
+            <div v-if="loading.exercise" class="mt-4 text-center text-slate-500">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500 mb-2"></div>
+              <p>AI 正在生成题目，请稍候...</p>
+            </div>
+          </div>
+
+          <!-- 阅读理解展示 -->
+          <div v-if="currentExercise?.type === 'reading'" class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-800 flex items-center gap-2"><span>📖</span> 阅读理解</h3>
+              <button @click="currentExercise = null" class="text-slate-400 hover:text-slate-600 text-sm">关闭</button>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-5 mb-5 leading-relaxed text-slate-700 whitespace-pre-wrap">{{ currentExercise.content.passage }}</div>
+            <div class="space-y-4">
+              <div v-for="(q, qi) in currentExercise.content.questions" :key="qi" class="border border-slate-100 rounded-xl p-4">
+                <p class="font-medium text-slate-800 mb-3">{{ qi + 1 }}. {{ q.question }}</p>
+                <div class="space-y-2">
+                  <label v-for="(opt, oi) in q.options" :key="oi"
+                    :class="exerciseAnswers[qi] === oi ? (String.fromCharCode(65 + oi) === q.answer ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300') : 'hover:bg-slate-50'"
+                    class="flex items-center gap-2 p-2 rounded-lg border border-transparent cursor-pointer transition-all">
+                    <input type="radio" :name="`q${qi}`" v-model="exerciseAnswers[qi]" :value="oi" :disabled="exerciseSubmitted">
+                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
+                    <span v-if="exerciseSubmitted && String.fromCharCode(65 + oi) === q.answer" class="ml-auto text-green-500">✓ 正确</span>
+                  </label>
+                </div>
+                <div v-if="exerciseSubmitted && q.explanation" class="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded">
+                  💡 {{ q.explanation }}
+                </div>
+              </div>
+            </div>
+            <button v-if="!exerciseSubmitted" @click="submitExercise" class="mt-4 w-full py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">提交答案</button>
+          </div>
+
+          <!-- 完型填空展示 -->
+          <div v-if="currentExercise?.type === 'cloze'" class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-800 flex items-center gap-2"><span>✏️</span> 完型填空</h3>
+              <button @click="currentExercise = null" class="text-slate-400 hover:text-slate-600 text-sm">关闭</button>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-5 mb-5 leading-relaxed text-slate-700">
+              <template v-for="(segment, si) in clozeSegments" :key="si">
+                <span>{{ segment }}</span>
+                <span v-if="si < clozeSegments.length - 1" class="inline-block mx-1 px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-sm font-mono">
+                  [{{ si + 1 }}]
+                </span>
+              </template>
+            </div>
+            <div class="space-y-4">
+              <div v-for="(blank, bi) in currentExercise.content.blanks" :key="bi" class="border border-slate-100 rounded-xl p-4">
+                <p class="font-medium text-slate-800 mb-3">第 {{ blank.index }} 空</p>
+                <div class="space-y-2">
+                  <label v-for="(opt, oi) in blank.options" :key="oi"
+                    :class="clozeAnswers[bi] === oi ? (opt === blank.answer ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300') : 'hover:bg-slate-50'"
+                    class="flex items-center gap-2 p-2 rounded-lg border border-transparent cursor-pointer transition-all">
+                    <input type="radio" :name="`b${bi}`" v-model="clozeAnswers[bi]" :value="oi" :disabled="exerciseSubmitted">
+                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
+                    <span v-if="exerciseSubmitted && opt === blank.answer" class="ml-auto text-green-500">✓ 正确</span>
+                  </label>
+                </div>
+                <div v-if="exerciseSubmitted && blank.explanation" class="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded">
+                  💡 {{ blank.explanation }}
+                </div>
+              </div>
+            </div>
+            <button v-if="!exerciseSubmitted" @click="submitCloze" class="mt-4 w-full py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">提交答案</button>
+          </div>
+        </section>
+
+        <!-- ====== AI 写作批改 ====== -->
+        <section v-if="currentTab === 'writing'" class="space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <span>✍️</span> 写作练习
+              <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg ml-auto">AI 智能批改</span>
+            </h3>
+            <input v-model="writingForm.title" type="text" placeholder="标题（可选）"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none mb-3">
+            <textarea v-model="writingForm.content" rows="10" placeholder="在这里写下你的英语作文..."
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none resize-y leading-relaxed"></textarea>
+            <div class="flex items-center justify-between mt-3">
+              <span class="text-sm text-slate-400">{{ writingWordCount }} 词</span>
+              <button @click="submitWriting" :disabled="loading.writing || !writingForm.content.trim()"
+                class="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
+                {{ loading.writing ? 'AI 批改中...' : '提交批改' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 批改结果 -->
+          <div v-if="writingFeedback" class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-800">批改结果</h3>
+              <div v-if="writingFeedback.score" class="text-2xl font-bold" :class="writingFeedback.score >= 80 ? 'text-green-500' : writingFeedback.score >= 60 ? 'text-orange-500' : 'text-red-500'">
+                {{ writingFeedback.score }} 分
+              </div>
+            </div>
+
+            <div v-if="writingFeedback.overallComment" class="bg-indigo-50 rounded-xl p-4 mb-4 text-slate-700">
+              <strong>📝 总评：</strong>{{ writingFeedback.overallComment }}
+            </div>
+
+            <div v-if="writingFeedback.corrections?.length" class="mb-4">
+              <h4 class="font-medium text-slate-700 mb-2">🔍 逐句修改</h4>
+              <div class="space-y-2">
+                <div v-for="(c, i) in writingFeedback.corrections" :key="i" class="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-red-500 line-through">{{ c.original }}</span>
+                    <span class="text-slate-400">→</span>
+                    <span class="text-green-600 font-medium">{{ c.corrected }}</span>
+                  </div>
+                  <p class="text-sm text-slate-500">{{ c.reason }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div v-if="writingFeedback.strengths?.length" class="bg-green-50 rounded-xl p-4">
+                <h4 class="font-medium text-green-700 mb-2">✅ 优点</h4>
+                <ul class="space-y-1 text-sm text-slate-600">
+                  <li v-for="(s, i) in writingFeedback.strengths" :key="i">• {{ s }}</li>
+                </ul>
+              </div>
+              <div v-if="writingFeedback.suggestions?.length" class="bg-orange-50 rounded-xl p-4">
+                <h4 class="font-medium text-orange-700 mb-2">💡 改进建议</h4>
+                <ul class="space-y-1 text-sm text-slate-600">
+                  <li v-for="(s, i) in writingFeedback.suggestions" :key="i">• {{ s }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== 写作历史 ====== -->
+        <section v-if="currentTab === 'history'" class="space-y-6">
+          <div v-if="writings.length === 0" class="bg-white rounded-2xl p-12 border border-slate-100 text-center">
+            <span class="text-6xl block mb-4">📜</span>
+            <h3 class="text-lg font-semibold text-slate-700 mb-2">还没有写作记录</h3>
+            <p class="text-slate-500">每一次写作都会被记录，让你看到进步的痕迹</p>
+          </div>
+
+          <div v-else class="space-y-4">
+            <div v-for="w in writings" :key="w.id" class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+              <div class="flex items-start justify-between mb-2">
+                <div>
+                  <h4 class="font-semibold text-slate-800">{{ w.title || '（无标题）' }}</h4>
+                  <p class="text-xs text-slate-400">{{ formatDate(w.createdAt) }} · {{ w.wordCount }} 词</p>
+                </div>
+                <div v-if="w.score" class="text-xl font-bold" :class="w.score >= 80 ? 'text-green-500' : w.score >= 60 ? 'text-orange-500' : 'text-red-500'">
+                  {{ w.score }}
+                </div>
+              </div>
+              <p class="text-sm text-slate-600 line-clamp-2 mb-3">{{ w.content }}</p>
+              <div v-if="w.aiFeedback?.overallComment" class="text-sm text-indigo-600 bg-indigo-50 p-2 rounded-lg">
+                💡 {{ w.aiFeedback.overallComment.slice(0, 80) }}...
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- 全局提示 -->
+      <transition name="slide">
+        <div v-if="toast.show" class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-medium"
+          :class="toast.type === 'error' ? 'bg-red-500' : toast.type === 'success' ? 'bg-green-500' : 'bg-slate-800'">
+          {{ toast.message }}
+        </div>
+      </transition>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+
+    createApp({
+      setup() {
+        const API_BASE = 'http://localhost:3000/api';
+
+        // ========== 认证状态 ==========
+        const isLoggedIn = ref(!!localStorage.getItem('token'));
+        const user = ref(JSON.parse(localStorage.getItem('user') || 'null'));
+        const authMode = ref('login');
+        const authForm = reactive({ email: '', password: '', name: '' });
+        const authError = ref('');
+        const authLoading = ref(false);
+
+        // ========== 导航 ==========
+        const tabs = [
+          { id: 'dashboard', label: '仪表盘', icon: '📊' },
+          { id: 'words', label: '错词本', icon: '📚' },
+          { id: 'dictation', label: '听写', icon: '🎧' },
+          { id: 'exercises', label: '智能出题', icon: '🧠' },
+          { id: 'writing', label: 'AI写作', icon: '✍️' },
+          { id: 'history', label: '写作历史', icon: '📜' },
+        ];
+        const currentTab = ref('dashboard');
+
+        // ========== 数据 ==========
+        const wrongWords = ref([]);
+        const writings = ref([]);
+        const stats = ref({});
+        const newWord = ref('');
+        const loading = reactive({ words: false, dictation: false, exercise: false, writing: false });
+
+        // ========== 听写 ==========
+        const dictationConfig = reactive({ count: 10, onlyHighFrequency: false });
+        const dictationExercise = ref(null);
+        const dictationWords = computed(() => dictationExercise.value?.content?.words || []);
+        const dictationIndex = ref(0);
+        const dictationAnswer = ref('');
+        const dictationResults = ref([]);
+        const dictationFinished = ref(false);
+        const dictationCorrect = computed(() => dictationResults.value.filter(r => r.correct).length);
+        const dictationScore = computed(() => dictationWords.value.length ? Math.round(dictationCorrect.value / dictationWords.value.length * 100) : 0);
+
+        // ========== 出题 ==========
+        const currentExercise = ref(null);
+        const exerciseAnswers = reactive({});
+        const clozeAnswers = reactive({});
+        const exerciseSubmitted = ref(false);
+        const clozeSegments = computed(() => {
+          if (!currentExercise.value?.content?.passage) return [];
+          return currentExercise.value.content.passage.split('___');
+        });
+
+        // ========== 写作 ==========
+        const writingForm = reactive({ title: '', content: '' });
+        const writingFeedback = ref(null);
+        const writingWordCount = computed(() => writingForm.content.trim() ? writingForm.content.trim().split(/\s+/).length : 0);
+
+        // ========== 提示 ==========
+        const toast = reactive({ show: false, message: '', type: 'info' });
+        function showToast(message, type = 'info') {
+          toast.message = message;
+          toast.type = type;
+          toast.show = true;
+          setTimeout(() => toast.show = false, 3000);
+        }
+
+        // ========== API 封装 ==========
+        async function api(path, options = {}) {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`${API_BASE}${path}`, {
+            ...options,
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              ...options.headers,
+            },
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '请求失败');
+          return data;
+        }
+
+        // ========== 认证方法 ==========
+        async function handleAuth() {
+          authError.value = '';
+          authLoading.value = true;
+          try {
+            const endpoint = authMode.value === 'login' ? '/auth/login' : '/auth/register';
+            const body = authMode.value === 'login'
+              ? { email: authForm.email, password: authForm.password }
+              : { email: authForm.email, password: authForm.password, name: authForm.name };
+
+            const data = await api(endpoint, { method: 'POST', body: JSON.stringify(body) });
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            user.value = data.user;
+            isLoggedIn.value = true;
+            showToast('登录成功！', 'success');
+            loadAllData();
+          } catch (err) {
+            authError.value = err.message;
+          } finally {
+            authLoading.value = false;
+          }
+        }
+
+        function logout() {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          isLoggedIn.value = false;
+          user.value = null;
+        }
+
+        // ========== 错词 ==========
+        async function loadWrongWords() {
+          try {
+            wrongWords.value = await api('/wrong-words');
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function addWord() {
+          if (!newWord.value.trim()) return;
+          loading.words = true;
+          try {
+            const data = await api('/wrong-words', { method: 'POST', body: JSON.stringify({ word: newWord.value }) });
+            const idx = wrongWords.value.findIndex(w => w.id === data.id);
+            if (idx >= 0) wrongWords.value[idx] = data;
+            else wrongWords.value.unshift(data);
+            newWord.value = '';
+            showToast('添加成功！', 'success');
+            loadStats();
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { loading.words = false; }
+        }
+
+        async function deleteWord(id) {
+          try {
+            await api(`/wrong-words/${id}`, { method: 'DELETE' });
+            wrongWords.value = wrongWords.value.filter(w => w.id !== id);
+            showToast('已删除', 'success');
+            loadStats();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        // ========== 朗读 ==========
+        function speakWord(word) {
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.8;
+            speechSynthesis.speak(utterance);
+          } else {
+            showToast('浏览器不支持语音合成', 'error');
+          }
+        }
+
+        // ========== 听写 ==========
+        async function startDictation() {
+          loading.dictation = true;
+          try {
+            const data = await api('/exercises/dictation', {
+              method: 'POST',
+              body: JSON.stringify(dictationConfig),
+            });
+            dictationExercise.value = data;
+            dictationIndex.value = 0;
+            dictationAnswer.value = '';
+            dictationResults.value = [];
+            dictationFinished.value = false;
+            setTimeout(() => speakWord(data.content.words[0].word), 500);
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { loading.dictation = false; }
+        }
+
+        function submitDictationAnswer() {
+          if (!dictationAnswer.value.trim()) return;
+          const current = dictationWords.value[dictationIndex.value];
+          const isCorrect = dictationAnswer.value.trim().toLowerCase() === current.word.toLowerCase();
+          dictationResults.value.push({ word: current.word, answer: dictationAnswer.value, correct: isCorrect });
+
+          if (dictationIndex.value < dictationWords.value.length - 1) {
+            dictationIndex.value++;
+            dictationAnswer.value = '';
+            setTimeout(() => speakWord(dictationWords.value[dictationIndex.value].word), 300);
+          } else {
+            dictationFinished.value = true;
+            showToast(`听写完成！得分 ${dictationScore.value}`, 'success');
+          }
+        }
+
+        // ========== 智能出题 ==========
+        async function generateExercise(type) {
+          loading.exercise = true;
+          currentExercise.value = null;
+          exerciseSubmitted.value = false;
+          Object.keys(exerciseAnswers).forEach(k => delete exerciseAnswers[k]);
+          Object.keys(clozeAnswers).forEach(k => delete clozeAnswers[k]);
+          try {
+            const data = await api('/exercises/generate', {
+              method: 'POST',
+              body: JSON.stringify({ type, wordCount: 8, difficulty: 3 }),
+            });
+            currentExercise.value = data;
+            showToast('题目生成成功！', 'success');
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { loading.exercise = false; }
+        }
+
+        function submitExercise() {
+          exerciseSubmitted.value = true;
+          const questions = currentExercise.value.content.questions;
+          let correct = 0;
+          questions.forEach((q, i) => {
+            if (String.fromCharCode(65 + exerciseAnswers[i]) === q.answer) correct++;
+          });
+          showToast(`答对 ${correct} / ${questions.length} 题`, correct >= questions.length / 2 ? 'success' : 'error');
+        }
+
+        function submitCloze() {
+          exerciseSubmitted.value = true;
+          const blanks = currentExercise.value.content.blanks;
+          let correct = 0;
+          blanks.forEach((b, i) => {
+            if (b.options[clozeAnswers[i]] === b.answer) correct++;
+          });
+          showToast(`答对 ${correct} / ${blanks.length} 空`, correct >= blanks.length / 2 ? 'success' : 'error');
+        }
+
+        // ========== 写作 ==========
+        async function submitWriting() {
+          if (!writingForm.content.trim()) return;
+          loading.writing = true;
+          writingFeedback.value = null;
+          try {
+            const data = await api('/writings/grade', {
+              method: 'POST',
+              body: JSON.stringify(writingForm),
+            });
+            writingFeedback.value = data.aiFeedback;
+            showToast(`批改完成！得分 ${data.score || 'N/A'}`, 'success');
+            loadWritings();
+            loadStats();
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { loading.writing = false; }
+        }
+
+        async function loadWritings() {
+          try { writings.value = await api('/writings'); }
+          catch (err) { showToast(err.message, 'error'); }
+        }
+
+        // ========== 统计 ==========
+        async function loadStats() {
+          try { stats.value = await api('/stats'); }
+          catch (err) { console.error(err); }
+        }
+
+        // ========== 进步曲线 ==========
+        const scoreChartCoords = computed(() => {
+          const writings = stats.value.recentWritings || [];
+          if (writings.length < 2) return [];
+          const scores = writings.map(w => w.score).reverse();
+          const min = Math.min(...scores) - 5;
+          const max = Math.max(...scores) + 5;
+          const range = max - min || 1;
+          return scores.map((s, i) => ({
+            x: (i / (scores.length - 1)) * 380 + 10,
+            y: 170 - ((s - min) / range) * 150,
+          }));
+        });
+        const scoreChartPoints = computed(() => scoreChartCoords.value.map(p => `${p.x},${p.y}`).join(' '));
+        const scoreChartArea = computed(() => {
+          const coords = scoreChartCoords.value;
+          if (coords.length < 2) return '';
+          return `${coords[0].x},170 ${scoreChartPoints.value} ${coords[coords.length - 1].x},170`;
+        });
+
+        // ========== 工具 ==========
+        function formatDate(date) {
+          return new Date(date).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // ========== 初始化 ==========
+        async function loadAllData() {
+          await Promise.all([loadWrongWords(), loadWritings(), loadStats()]);
+        }
+
+        onMounted(() => {
+          if (isLoggedIn.value) loadAllData();
+        });
+
+        return {
+          isLoggedIn, user, authMode, authForm, authError, authLoading, handleAuth, logout,
+          tabs, currentTab,
+          wrongWords, writings, stats, newWord, loading,
+          addWord, deleteWord, speakWord,
+          dictationConfig, dictationExercise, dictationWords, dictationIndex, dictationAnswer,
+          dictationResults, dictationFinished, dictationCorrect, dictationScore,
+          startDictation, submitDictationAnswer,
+          currentExercise, exerciseAnswers, clozeAnswers, exerciseSubmitted, clozeSegments,
+          generateExercise, submitExercise, submitCloze,
+          writingForm, writingFeedback, writingWordCount, submitWriting,
+          scoreChartCoords, scoreChartPoints, scoreChartArea,
+          toast, formatDate,
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
