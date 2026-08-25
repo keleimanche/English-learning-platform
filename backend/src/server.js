@@ -656,15 +656,39 @@ app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 50, search = '' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    let queryStr = `select=id,email,name,role,"createdAt"&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
+    const selectFields = 'id,email,name,role,"createdAt",LearningStats(totalWords,totalWritings,avgScore,streak)';
+    let queryStr = `select=${encodeURIComponent(selectFields)}&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
     if (search) {
-      queryStr = `select=id,email,name,role,"createdAt"&email=ilike.%${encodeURIComponent(search)}%&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
+      queryStr = `select=${encodeURIComponent(selectFields)}&email=ilike.%${encodeURIComponent(search)}%&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
     }
-    const users = await sbGet('User', queryStr);
+    let users = await sbGet('User', queryStr);
     const totalCount = await sbCount('User', search ? `email=ilike.%${encodeURIComponent(search)}%` : '');
     res.json({ users, total: totalCount, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
     res.status(500).json({ error: '获取用户列表失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users/:userId/detail', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const uid = req.params.userId;
+    const [userInfo, wrongWords, writings, exercises, statsArr] = await Promise.all([
+      sbGet('User', `select=id,email,name,role,"createdAt"&id=eq.${uid}`),
+      sbGet('WrongWord', `select=id,word,meaning,phonetic,frequency,"lastErrorAt"&"userId"=eq.${uid}&order=frequency.desc`),
+      sbGet('Writing', `select=id,title,content,score,"wordCount","createdAt"&"userId"=eq.${uid}&order="createdAt".desc`),
+      sbGet('Exercise', `select=id,type,difficulty,"createdAt"&"userId"=eq.${uid}&order="createdAt".desc`),
+      sbGet('LearningStats', `select=*&"userId"=eq.${uid}`),
+    ]);
+    if (userInfo.length === 0) return res.status(404).json({ error: '用户不存在' });
+    res.json({
+      user: userInfo[0],
+      wrongWords,
+      writings,
+      exercises,
+      stats: statsArr[0] || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: '获取用户详情失败: ' + err.message });
   }
 });
 
@@ -676,6 +700,15 @@ app.get('/api/admin/users/:userId/wrong-words', authenticate, requireAdmin, asyn
     res.json(words);
   } catch (err) {
     res.status(500).json({ error: '获取用户错词失败: ' + err.message });
+  }
+});
+
+app.delete('/api/admin/users/:userId/wrong-words/:wordId', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await sbDelete('WrongWord', `id=eq.${req.params.wordId}&"userId"=eq.${req.params.userId}`);
+    res.json({ message: '已删除' });
+  } catch (err) {
+    res.status(500).json({ error: '删除错词失败: ' + err.message });
   }
 });
 
@@ -717,13 +750,34 @@ app.get('/api/admin/users/:userId/stats', authenticate, requireAdmin, async (req
 
 app.get('/api/admin/top-words', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { limit = 20 } = req.query;
-    const topWords = await sbGet('WrongWord',
-      `select=word,meaning,frequency&order=frequency.desc&limit=${parseInt(limit)}`
+    const { limit = 50 } = req.query;
+    const allWords = await sbGet('WrongWord',
+      `select=word,meaning,frequency,"userId"&order=frequency.desc&limit=${parseInt(limit)}`
     );
-    res.json(topWords);
+    const aggregated = {};
+    for (const item of allWords) {
+      if (!aggregated[item.word]) {
+        aggregated[item.word] = { word: item.word, meaning: item.meaning, totalFrequency: 0, userCount: 0 };
+      }
+      aggregated[item.word].totalFrequency += item.frequency;
+      aggregated[item.word].userCount += 1;
+    }
+    const result = Object.values(aggregated).sort((a, b) => b.totalFrequency - a.totalFrequency);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: '获取高频错词失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/writing-trends', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    const writings = await sbGet('Writing',
+      `select=score,"createdAt","userId"&score=not.is.null&order="createdAt".asc&limit=${parseInt(limit)}`
+    );
+    res.json(writings);
+  } catch (err) {
+    res.status(500).json({ error: '获取写作趋势失败: ' + err.message });
   }
 });
 
