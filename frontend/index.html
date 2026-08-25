@@ -522,6 +522,183 @@
           </div>
         </section>
 
+        <!-- ====== 管理后台 ====== -->
+        <section v-if="currentTab === 'admin' && user?.role === 'admin'" class="space-y-6">
+
+          <!-- 用户详情弹窗 -->
+          <div v-if="adminSelectedUser" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="closeUserDetail">
+            <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-xl font-bold text-slate-800">{{ adminSelectedUser.name }}</h3>
+                  <p class="text-sm text-slate-500">{{ adminSelectedUser.email }} · {{ adminSelectedUser.role === 'admin' ? '管理员' : '普通用户' }}</p>
+                </div>
+                <button @click="closeUserDetail" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+              </div>
+
+              <div class="flex gap-2 mb-4 border-b border-slate-100 pb-2">
+                <button @click="adminSubTab = 'overview'" :class="adminSubTab === 'overview' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">概览</button>
+                <button @click="adminSubTab = 'words'" :class="adminSubTab === 'words' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">错词 ({{ adminUserWords.length }})</button>
+                <button @click="adminSubTab = 'writings'" :class="adminSubTab === 'writings' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">写作 ({{ adminUserWritings.length }})</button>
+                <button @click="adminSubTab = 'exercises'" :class="adminSubTab === 'exercises' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">练习 ({{ adminUserExercises.length }})</button>
+              </div>
+
+              <div v-if="adminSubTab === 'overview'">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div class="bg-slate-50 rounded-xl p-3 text-center">
+                    <div class="text-2xl font-bold text-slate-800">{{ adminUserStats?.stats?.totalWords || adminUserWords.length }}</div>
+                    <div class="text-xs text-slate-500">错词数</div>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl p-3 text-center">
+                    <div class="text-2xl font-bold text-slate-800">{{ adminUserStats?.stats?.totalWritings || adminUserWritings.length }}</div>
+                    <div class="text-xs text-slate-500">写作数</div>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl p-3 text-center">
+                    <div class="text-2xl font-bold text-slate-800">{{ (adminUserStats?.stats?.avgScore || 0).toFixed(1) }}</div>
+                    <div class="text-xs text-slate-500">平均分</div>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl p-3 text-center">
+                    <div class="text-2xl font-bold text-slate-800">{{ adminUserStats?.stats?.streak || 0 }}</div>
+                    <div class="text-xs text-slate-500">连续天数</div>
+                  </div>
+                </div>
+                <div class="text-sm text-slate-500">注册时间：{{ formatDate(adminSelectedUser.createdAt) }}</div>
+              </div>
+
+              <div v-if="adminSubTab === 'words'" class="space-y-2">
+                <div v-for="w in adminUserWords" :key="w.id" class="flex items-center justify-between bg-slate-50 rounded-lg p-3">
+                  <div>
+                    <span class="font-medium text-slate-800">{{ w.word }}</span>
+                    <span class="text-xs text-slate-400 ml-2">{{ w.phonetic }}</span>
+                    <p class="text-xs text-slate-500 truncate mt-1">{{ w.meaning }}</p>
+                  </div>
+                  <span class="text-sm font-medium text-red-500 bg-red-50 px-2 py-1 rounded">×{{ w.frequency }}</span>
+                </div>
+                <div v-if="adminUserWords.length === 0" class="text-center text-slate-400 py-8">暂无错词</div>
+              </div>
+
+              <div v-if="adminSubTab === 'writings'" class="space-y-3">
+                <div v-for="w in adminUserWritings" :key="w.id" class="bg-slate-50 rounded-lg p-4">
+                  <div class="flex justify-between items-start mb-1">
+                    <h4 class="font-medium text-slate-800">{{ w.title || '（无标题）' }}</h4>
+                    <span v-if="w.score" class="font-bold" :class="w.score >= 80 ? 'text-green-500' : w.score >= 60 ? 'text-orange-500' : 'text-red-500'">{{ w.score }}</span>
+                  </div>
+                  <p class="text-sm text-slate-600 line-clamp-3">{{ w.content }}</p>
+                  <p class="text-xs text-slate-400 mt-2">{{ formatDate(w.createdAt) }} · {{ w.wordCount }} 词</p>
+                </div>
+                <div v-if="adminUserWritings.length === 0" class="text-center text-slate-400 py-8">暂无写作</div>
+              </div>
+
+              <div v-if="adminSubTab === 'exercises'" class="space-y-2">
+                <div v-for="e in adminUserExercises" :key="e.id" class="flex items-center justify-between bg-slate-50 rounded-lg p-3">
+                  <div>
+                    <span class="font-medium text-slate-800">{{ e.type === 'dictation' ? '听写' : e.type === 'reading' ? '阅读理解' : '完型填空' }}</span>
+                    <span class="text-xs text-slate-400 ml-2">难度 {{ e.difficulty }}</span>
+                  </div>
+                  <span class="text-xs text-slate-400">{{ formatDate(e.createdAt) }}</span>
+                </div>
+                <div v-if="adminUserExercises.length === 0" class="text-center text-slate-400 py-8">暂无练习</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 管理总览 -->
+          <div v-if="!adminSelectedUser">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="text-slate-500 text-sm mb-1">总用户数</div>
+                <div class="text-3xl font-bold text-slate-800">{{ adminStats?.userCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="text-slate-500 text-sm mb-1">总错词数</div>
+                <div class="text-3xl font-bold text-slate-800">{{ adminStats?.wordCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="text-slate-500 text-sm mb-1">总写作数</div>
+                <div class="text-3xl font-bold text-slate-800">{{ adminStats?.writingCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="text-slate-500 text-sm mb-1">总练习数</div>
+                <div class="text-3xl font-bold text-slate-800">{{ adminStats?.exerciseCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="text-slate-500 text-sm mb-1">今日活跃</div>
+                <div class="text-3xl font-bold text-slate-800">{{ adminStats?.activeCount || 0 }}</div>
+              </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+              <!-- 高频错词 TOP 10 -->
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <h3 class="font-semibold text-slate-800 mb-4">🏆 全局高频错词 TOP 10</h3>
+                <div class="space-y-2">
+                  <div v-for="(w, i) in (adminStats?.topWords || [])" :key="i" class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-sm font-bold">{{ i + 1 }}</div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-medium text-slate-800">{{ w.word }}</div>
+                      <div class="text-xs text-slate-500 truncate">{{ w.meaning }}</div>
+                    </div>
+                    <div class="text-sm font-medium text-red-500 bg-red-50 px-2 py-1 rounded-lg">×{{ w.frequency }}</div>
+                  </div>
+                  <div v-if="!adminStats?.topWords?.length" class="text-center text-slate-400 py-4">暂无数据</div>
+                </div>
+              </div>
+
+              <!-- 最近注册用户 -->
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <h3 class="font-semibold text-slate-800 mb-4">🆕 最近注册用户</h3>
+                <div class="space-y-2">
+                  <div v-for="u in (adminStats?.recentUsers || [])" :key="u.id" class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">{{ u.name?.[0] || 'U' }}</div>
+                    <div class="flex-1">
+                      <div class="font-medium text-slate-800">{{ u.name }}</div>
+                      <div class="text-xs text-slate-500">{{ u.email }}</div>
+                    </div>
+                    <div class="text-xs text-slate-400">{{ formatDate(u.createdAt) }}</div>
+                  </div>
+                  <div v-if="!adminStats?.recentUsers?.length" class="text-center text-slate-400 py-4">暂无数据</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 用户列表 -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm mt-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-slate-800">👥 所有用户 ({{ adminUsersTotal }})</h3>
+                <input v-model="adminSearch" @input="loadAdminUsers" type="text" placeholder="搜索邮箱..." class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:border-indigo-500 outline-none">
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-slate-100 text-slate-500">
+                      <th class="text-left py-2 px-3">姓名</th>
+                      <th class="text-left py-2 px-3">邮箱</th>
+                      <th class="text-left py-2 px-3">角色</th>
+                      <th class="text-left py-2 px-3">注册时间</th>
+                      <th class="text-left py-2 px-3">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="u in adminUsers" :key="u.id" class="border-b border-slate-50 hover:bg-slate-50">
+                      <td class="py-2 px-3 font-medium text-slate-800">{{ u.name }}</td>
+                      <td class="py-2 px-3 text-slate-600">{{ u.email }}</td>
+                      <td class="py-2 px-3">
+                        <span :class="u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-600'" class="px-2 py-0.5 rounded text-xs font-medium">{{ u.role === 'admin' ? '管理员' : '用户' }}</span>
+                      </td>
+                      <td class="py-2 px-3 text-slate-400">{{ formatDate(u.createdAt) }}</td>
+                      <td class="py-2 px-3">
+                        <button @click="viewUserDetail(u)" class="text-indigo-500 hover:text-indigo-700 font-medium">查看</button>
+                        <button @click="toggleUserRole(u)" class="text-slate-400 hover:text-orange-500 font-medium ml-2">{{ u.role === 'admin' ? '降级' : '设管理员' }}</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-if="adminUsers.length === 0" class="text-center text-slate-400 py-8">暂无用户</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <!-- 全局提示 -->
@@ -550,7 +727,7 @@
         const authLoading = ref(false);
 
         // ========== 导航 ==========
-        const tabs = [
+        const baseTabs = [
           { id: 'dashboard', label: '仪表盘', icon: '📊' },
           { id: 'words', label: '错词本', icon: '📚' },
           { id: 'dictation', label: '听写', icon: '🎧' },
@@ -558,6 +735,13 @@
           { id: 'writing', label: 'AI写作', icon: '✍️' },
           { id: 'history', label: '写作历史', icon: '📜' },
         ];
+        const tabs = computed(() => {
+          const t = [...baseTabs];
+          if (user.value?.role === 'admin') {
+            t.push({ id: 'admin', label: '管理后台', icon: '👨‍💼' });
+          }
+          return t;
+        });
         const currentTab = ref('dashboard');
 
         // ========== 数据 ==========
@@ -600,6 +784,79 @@
           toast.type = type;
           toast.show = true;
           setTimeout(() => toast.show = false, 3000);
+        }
+
+        // ========== 管理后台 ==========
+        const adminStats = ref(null);
+        const adminUsers = ref([]);
+        const adminUsersTotal = ref(0);
+        const adminSearch = ref('');
+        const adminSelectedUser = ref(null);
+        const adminUserWords = ref([]);
+        const adminUserWritings = ref([]);
+        const adminUserExercises = ref([]);
+        const adminUserStats = ref(null);
+        const adminLoading = reactive({ stats: false, users: false, detail: false });
+        const adminSubTab = ref('overview');
+
+        async function loadAdminStats() {
+          adminLoading.stats = true;
+          try {
+            adminStats.value = await api('/admin/stats');
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { adminLoading.stats = false; }
+        }
+
+        async function loadAdminUsers() {
+          adminLoading.users = true;
+          try {
+            const params = adminSearch.value ? `?search=${encodeURIComponent(adminSearch.value)}` : '';
+            const data = await api(`/admin/users${params}`);
+            adminUsers.value = data.users;
+            adminUsersTotal.value = data.total;
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { adminLoading.users = false; }
+        }
+
+        async function viewUserDetail(u) {
+          adminSelectedUser.value = u;
+          adminSubTab.value = 'overview';
+          adminLoading.detail = true;
+          try {
+            const [statsData, wordsData, writingsData, exercisesData] = await Promise.all([
+              api(`/admin/users/${u.id}/stats`),
+              api(`/admin/users/${u.id}/wrong-words`),
+              api(`/admin/users/${u.id}/writings`),
+              api(`/admin/users/${u.id}/exercises`),
+            ]);
+            adminUserStats.value = statsData;
+            adminUserWords.value = wordsData;
+            adminUserWritings.value = writingsData;
+            adminUserExercises.value = exercisesData;
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { adminLoading.detail = false; }
+        }
+
+        function closeUserDetail() {
+          adminSelectedUser.value = null;
+          adminUserWords.value = [];
+          adminUserWritings.value = [];
+          adminUserExercises.value = [];
+          adminUserStats.value = null;
+        }
+
+        async function toggleUserRole(u) {
+          try {
+            const newRole = u.role === 'admin' ? 'user' : 'admin';
+            await api(`/admin/users/${u.id}/role`, { method: 'PATCH', body: JSON.stringify({ role: newRole }) });
+            u.role = newRole;
+            showToast(`已设为${newRole === 'admin' ? '管理员' : '普通用户'}`, 'success');
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        function initAdmin() {
+          loadAdminStats();
+          loadAdminUsers();
         }
 
         // ========== API 封装 ==========
@@ -821,6 +1078,7 @@
         // ========== 初始化 ==========
         async function loadAllData() {
           await Promise.all([loadWrongWords(), loadWritings(), loadStats()]);
+          if (user.value?.role === 'admin') initAdmin();
         }
 
         onMounted(() => {
@@ -840,6 +1098,9 @@
           writingForm, writingFeedback, writingWordCount, submitWriting,
           scoreChartCoords, scoreChartPoints, scoreChartArea,
           toast, formatDate,
+          adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
+          adminUserWords, adminUserWritings, adminUserExercises, adminUserStats,
+          adminLoading, adminSubTab, initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, toggleUserRole,
         };
       }
     }).mount('#app');

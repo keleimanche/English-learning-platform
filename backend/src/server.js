@@ -125,6 +125,21 @@ function authenticate(req, res, next) {
 }
 
 // ============================================
+// 中间件：管理员权限检查
+// ============================================
+async function requireAdmin(req, res, next) {
+  try {
+    const users = await sbGet('User', `select=id,email,name,role&id=eq.${req.userId}`);
+    if (users.length === 0) return res.status(404).json({ error: '用户不存在' });
+    if (users[0].role !== 'admin') return res.status(403).json({ error: '需要管理员权限' });
+    req.adminUser = users[0];
+    next();
+  } catch (err) {
+    res.status(500).json({ error: '权限检查失败: ' + err.message });
+  }
+}
+
+// ============================================
 // AI 调用（兼容 OpenAI 接口）
 // ============================================
 async function callAI(messages, temperature = 0.7) {
@@ -244,7 +259,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.status(201).json({ token, user: { id, email, name } });
+    res.status(201).json({ token, user: { id, email, name, role: 'user' } });
   } catch (err) {
     res.status(500).json({ error: '注册失败: ' + err.message });
   }
@@ -255,7 +270,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: '邮箱和密码为必填' });
 
-    const users = await sbGet('User', `select=id,email,password,name&email=eq.${encodeURIComponent(email)}`);
+    const users = await sbGet('User', `select=id,email,password,name,role&email=eq.${encodeURIComponent(email)}`);
     const user = users[0];
     if (!user) return res.status(401).json({ error: '邮箱或密码错误' });
 
@@ -263,7 +278,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: '邮箱或密码错误' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role || 'user' } });
   } catch (err) {
     res.status(500).json({ error: '登录失败: ' + err.message });
   }
@@ -607,6 +622,119 @@ app.get('/api/stats', authenticate, async (req, res) => {
     res.json({ ...stats, recentWritings, highFrequencyWords });
   } catch (err) {
     res.status(500).json({ error: '获取统计失败: ' + err.message });
+  }
+});
+
+// ============================================
+// 7. 管理后台 API（需要 admin 权限）
+// ============================================
+app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const userCount = await sbCount('User');
+    const wordCount = await sbCount('WrongWord');
+    const writingCount = await sbCount('Writing');
+    const exerciseCount = await sbCount('Exercise');
+
+    const today = new Date().toISOString().split('T')[0];
+    const activeCount = await sbCount('LearningStats', `"lastStudyDate"=gte.${today}`);
+
+    const topWords = await sbGet('WrongWord',
+      `select=word,meaning,frequency&order=frequency.desc&limit=10`
+    );
+
+    const recentUsers = await sbGet('User',
+      `select=id,email,name,"createdAt"&order="createdAt".desc&limit=5`
+    );
+
+    res.json({ userCount, wordCount, writingCount, exerciseCount, activeCount, topWords, recentUsers });
+  } catch (err) {
+    res.status(500).json({ error: '获取管理统计失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    let queryStr = `select=id,email,name,role,"createdAt"&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
+    if (search) {
+      queryStr = `select=id,email,name,role,"createdAt"&email=ilike.%${encodeURIComponent(search)}%&order="createdAt".desc&limit=${parseInt(limit)}&offset=${offset}`;
+    }
+    const users = await sbGet('User', queryStr);
+    const totalCount = await sbCount('User', search ? `email=ilike.%${encodeURIComponent(search)}%` : '');
+    res.json({ users, total: totalCount, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) {
+    res.status(500).json({ error: '获取用户列表失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users/:userId/wrong-words', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const words = await sbGet('WrongWord',
+      `select=id,word,meaning,phonetic,frequency,"lastErrorAt"&"userId"=eq.${req.params.userId}&order=frequency.desc`
+    );
+    res.json(words);
+  } catch (err) {
+    res.status(500).json({ error: '获取用户错词失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users/:userId/writings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const writings = await sbGet('Writing',
+      `select=id,title,content,"aiFeedback",score,"wordCount","createdAt"&"userId"=eq.${req.params.userId}&order="createdAt".desc`
+    );
+    res.json(writings);
+  } catch (err) {
+    res.status(500).json({ error: '获取用户写作失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users/:userId/exercises', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const exercises = await sbGet('Exercise',
+      `select=id,type,content,"targetWords",difficulty,"createdAt"&"userId"=eq.${req.params.userId}&order="createdAt".desc`
+    );
+    res.json(exercises);
+  } catch (err) {
+    res.status(500).json({ error: '获取用户练习失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/users/:userId/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const statsArr = await sbGet('LearningStats',
+      `select=*&"userId"=eq.${req.params.userId}`
+    );
+    const userInfo = await sbGet('User',
+      `select=id,email,name,role,"createdAt"&id=eq.${req.params.userId}`
+    );
+    res.json({ stats: statsArr[0] || null, user: userInfo[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: '获取用户统计失败: ' + err.message });
+  }
+});
+
+app.get('/api/admin/top-words', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const topWords = await sbGet('WrongWord',
+      `select=word,meaning,frequency&order=frequency.desc&limit=${parseInt(limit)}`
+    );
+    res.json(topWords);
+  } catch (err) {
+    res.status(500).json({ error: '获取高频错词失败: ' + err.message });
+  }
+});
+
+app.patch('/api/admin/users/:userId/role', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'role 必须是 admin 或 user' });
+    const updated = await sbPatch('User', `id=eq.${req.params.userId}`, { role });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: '更新用户角色失败: ' + err.message });
   }
 });
 
