@@ -460,34 +460,49 @@ app.post('/api/exercises/dictation', authenticate, async (req, res) => {
 // ============================================
 app.post('/api/exercises/generate', authenticate, async (req, res) => {
   try {
-    const { type = 'reading', wordCount = 8, difficulty = 3 } = req.body;
+    const { type = 'reading', wordCount = 8, difficulty = 3, examType = 'zhongkao' } = req.body;
     const words = await sbGet('WrongWord',
       `select=word&"userId"=eq.${req.userId}&order=frequency.desc&limit=${wordCount}`
     );
     if (words.length < 3) return res.status(400).json({ error: '至少需要 3 个错词才能生成题目' });
 
     const wordList = words.map(w => w.word).join(', ');
+    const examDesc = examType === 'gaokao'
+      ? '高考难度（词汇量3500，文章约250词，题目接近高考英语阅读理解风格，选项需仔细辨析）'
+      : '中考难度（词汇量1500，文章约150词，题目接近中考英语阅读理解风格，选项区分度明显）';
+    const examStandard = examType === 'gaokao'
+      ? '符合高考英语全国卷阅读理解题型特点'
+      : '符合中考英语阅读理解题型特点';
+
     let prompt = '';
     if (type === 'reading') {
-      prompt = `你是一位英语教学专家。请根据以下学生常错的单词，编写一篇约 200 词的英语阅读理解文章，文章中要自然地使用这些单词：${wordList}。
+      prompt = `你是一位资深英语命题专家，专门研究${examType === 'gaokao' ? '高考' : '中考'}英语命题。请根据以下学生常错的单词，编写一篇${examDesc}的英语阅读理解文章，文章中要自然地使用这些单词：${wordList}。
 
 请返回 JSON 格式（不要包含 markdown 代码块标记）：
-{"passage":"文章正文","questions":[{"question":"问题","options":["A选项","B选项","C选项","D选项"],"answer":"正确选项字母如A","explanation":"解析"}]}
+{"passage":"文章正文","questions":[{"question":"问题（用英文）","options":["A选项","B选项","C选项","D选项"],"answer":"正确选项字母如A","explanation":"中文解析，详细说明为什么选这个答案，其他选项为什么不对"}]}
 
-要求：生成 4 道选择题，难度等级 ${difficulty}，文章主题积极向上。`;
+要求：
+1. 生成 4 道选择题，${examStandard}
+2. 问题和选项用英文，解析全部用中文
+3. 文章主题积极向上，难度${examType === 'gaokao' ? '接近高考' : '接近中考'}
+4. 每道题的解析不少于30字，用中文详细解释`;
     } else if (type === 'cloze') {
-      prompt = `你是一位英语教学专家。请根据以下学生常错的单词，编写一篇约 150 词的英语完型填空文章，挖空处使用这些单词：${wordList}。
+      prompt = `你是一位资深英语命题专家，专门研究${examType === 'gaokao' ? '高考' : '中考'}英语命题。请根据以下学生常错的单词，编写一篇${examDesc}的英语完型填空文章，挖空处使用这些单词：${wordList}。
 
 请返回 JSON 格式（不要包含 markdown 代码块标记）：
-{"passage":"文章正文挖空处用___表示","blanks":[{"index":1,"answer":"正确单词","options":["干扰项1","干扰项2","干扰项3","正确单词"],"explanation":"解析"}]}
+{"passage":"文章正文挖空处用___表示","blanks":[{"index":1,"answer":"正确单词","options":["干扰项1","干扰项2","干扰项3","正确单词"],"explanation":"中文解析，说明为什么填这个单词"}]}
 
-要求：挖空数量等于提供的单词数，每个空提供 4 个选项，难度等级 ${difficulty}。`;
+要求：
+1. 挖空数量等于提供的单词数，每个空提供 4 个选项
+2. 选项和答案用英文，解析全部用中文
+3. ${examStandard}，难度${examType === 'gaokao' ? '接近高考' : '接近中考'}
+4. 每个空的解析不少于20字，用中文解释`;
     } else {
       return res.status(400).json({ error: '不支持的题目类型: ' + type });
     }
 
     const aiResponse = await callAI([
-      { role: 'system', content: '你是英语教学专家，擅长根据学生的薄弱词汇设计针对性练习。只返回纯JSON，不要包含任何markdown标记。' },
+      { role: 'system', content: `你是资深英语命题专家，擅长根据${examType === 'gaokao' ? '高考' : '中考'}考试标准设计针对性练习。所有解析必须用中文。只返回纯JSON，不要包含任何markdown标记。` },
       { role: 'user', content: prompt },
     ], 0.7);
 
@@ -537,19 +552,19 @@ app.post('/api/writings/grade', authenticate, async (req, res) => {
     if (!content?.trim()) return res.status(400).json({ error: '写作内容不能为空' });
 
     const wordCount = content.trim().split(/\s+/).length;
-    const prompt = `你是一位专业的英语写作老师。请批改以下英语作文，给出详细的反馈。
+    const prompt = `你是一位专业的英语写作老师。请批改以下英语作文，给出详细的反馈。所有评价、分析、建议都必须用中文。
 
 标题：${title || '（无标题）'}
 正文：
 ${content}
 
 请返回 JSON 格式（不要包含 markdown 代码块标记）：
-{"score":85,"overallComment":"总体评价","corrections":[{"original":"错误片段","corrected":"正确表达","reason":"修改原因"}],"strengths":["优点1"],"suggestions":["建议1"],"vocabularyAnalysis":"词汇分析","grammarAnalysis":"语法分析","structureAnalysis":"结构分析"}
+{"score":85,"overallComment":"中文总体评价","corrections":[{"original":"错误片段","corrected":"正确表达","reason":"中文修改原因"}],"strengths":["中文优点1"],"suggestions":["中文建议1"],"vocabularyAnalysis":"中文词汇分析","grammarAnalysis":"中文语法分析","structureAnalysis":"中文结构分析"}
 
-评分标准：0-100 分。`;
+评分标准：0-100 分。所有字段内容必须用中文。`;
 
     const aiResponse = await callAI([
-      { role: 'system', content: '你是专业的英语写作老师，擅长批改英语作文并给出建设性反馈。只返回纯JSON，不要包含任何markdown标记。' },
+      { role: 'system', content: '你是专业的英语写作老师，擅长批改英语作文并给出建设性反馈。所有反馈内容必须用中文。只返回纯JSON，不要包含任何markdown标记。' },
       { role: 'user', content: prompt },
     ], 0.3);
 
