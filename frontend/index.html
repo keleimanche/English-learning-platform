@@ -925,6 +925,13 @@
             },
           });
           const data = await res.json();
+          if (res.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            isLoggedIn.value = false;
+            user.value = null;
+            throw new Error('登录已过期，请重新登录');
+          }
           if (!res.ok) throw new Error(data.error || '请求失败');
           return data;
         }
