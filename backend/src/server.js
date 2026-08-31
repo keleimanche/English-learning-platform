@@ -795,6 +795,10 @@ app.patch('/api/admin/users/:userId/role', authenticate, requireAdmin, async (re
 // ============================================
 // 健康检查
 // ============================================
+app.get('/', (req, res) => {
+  res.json({ service: '英语学习平台API', health: '/api/health', docs: '/api/health' });
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await sbGet('User', 'select=id&limit=1');
