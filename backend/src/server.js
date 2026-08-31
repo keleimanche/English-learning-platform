@@ -166,27 +166,50 @@ async function callAI(messages, temperature = 0.7) {
 // ============================================
 // 查询单词词义（免费词典 API）
 // ============================================
+// 词典查询（有道词典API）
+// ============================================
 async function fetchWordMeaning(word) {
-  const apiUrl = process.env.DICTIONARY_API_URL || 'https://api.dictionaryapi.dev/api/v2/entries/en';
   try {
-    const response = await fetch(`${apiUrl}/${encodeURIComponent(word.toLowerCase())}`);
-    if (!response.ok) return null;
+    const response = await fetch(
+      `https://dict.youdao.com/jsonapi?q=${encodeURIComponent(word)}`
+    );
+
+    if (!response.ok) {
+      return { meaning: '（API请求失败）', phonetic: '' };
+    }
+
     const data = await response.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
 
-    const entry = data[0];
-    const phonetic = entry.phonetic || entry.phonetics?.find(p => p.text)?.text || '';
-    const meanings = entry.meanings?.map(m => ({
-      partOfSpeech: m.partOfSpeech,
-      definitions: m.definitions?.slice(0, 3).map(d => d.definition),
-    })) || [];
-    const meaningText = meanings.map(m => `${m.partOfSpeech}. ${m.definitions?.join('; ')}`).join(' | ');
+    let meaning = '（未找到释义）';
+    let phonetic = '';
 
-    return { meaning: meaningText || '（未找到词义）', phonetic };
-  } catch (err) {
-    return null;
+    // 有道API结构：data.ec.word['0'].trs[].tr[].l.i
+    const wordEntry = data.ec?.word?.['0'] || data.ec?.word?.[0];
+    if (wordEntry?.trs) {
+      const translations = wordEntry.trs
+        .flatMap(t => t.tr || [])
+        .flatMap(tr => {
+          const i = tr?.l?.i;
+          if (Array.isArray(i)) return i;
+          if (typeof i === 'string') return [i];
+          return [];
+        })
+        .filter(Boolean);
+      if (translations.length > 0) {
+        meaning = translations.join('；');
+      }
+    }
+
+    // 音标
+    phonetic = wordEntry?.usphone || data.simple?.word?.[0]?.usphone || '';
+
+    return { meaning, phonetic };
+  } catch (error) {
+    console.error('词典查询失败:', error.message);
+    return { meaning: '（查询失败，可手动编辑）', phonetic: '' };
   }
 }
+
 
 // ============================================
 // 更新学习统计
@@ -812,20 +835,20 @@ app.get('/api/health', async (req, res) => {
 // 启动服务器
 // ============================================
 app.listen(PORT, async () => {
-  console.log(`\n🚀 英语学习平台后端运行在 http://localhost:${PORT}`);
-  console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
-  console.log(`🤖 AI 已配置: ${process.env.AI_API_KEY ? '是' : '否'}`);
-  console.log(`🗄️  数据库: Supabase REST API`);
+  console.log(`\n🚀 英语学习平台后端运行在 http://localhost:${PORT} - server.js:842`);
+  console.log(`📊 健康检查: http://localhost:${PORT}/api/health - server.js:843`);
+  console.log(`🤖 AI 已配置: ${process.env.AI_API_KEY ? '是' : '否'} - server.js:844`);
+  console.log(`🗄️  数据库: Supabase REST API - server.js:845`);
   try {
     await sbGet('User', 'select=id&limit=1');
-    console.log('✅ 数据库连接正常');
+    console.log('✅ 数据库连接正常 - server.js:848');
   } catch (err) {
-    console.error('❌ 数据库连接失败:', err.message);
+    console.error('❌ 数据库连接失败: - server.js:850', err.message);
   }
-  console.log(`\n📌 可用路由:`);
-  console.log(`   POST /api/auth/register | /api/auth/login`);
-  console.log(`   GET/POST/PUT/DELETE /api/wrong-words`);
-  console.log(`   POST /api/exercises/dictation | /api/exercises/generate`);
-  console.log(`   POST /api/writings/grade | GET /api/writings`);
-  console.log(`   GET /api/stats\n`);
+  console.log(`\n📌 可用路由: - server.js:852`);
+  console.log(`POST /api/auth/register | /api/auth/login - server.js:853`);
+  console.log(`GET/POST/PUT/DELETE /api/wrongwords - server.js:854`);
+  console.log(`POST /api/exercises/dictation | /api/exercises/generate - server.js:855`);
+  console.log(`POST /api/writings/grade | GET /api/writings - server.js:856`);
+  console.log(`GET /api/stats\n - server.js:857`);
 });
