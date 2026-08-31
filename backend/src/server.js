@@ -166,25 +166,52 @@ async function callAI(messages, temperature = 0.7) {
 // ============================================
 // 查询单词词义（免费词典 API）
 // ============================================
+// 替换原来的词典查询函数
 async function fetchWordMeaning(word) {
-  const apiUrl = process.env.DICTIONARY_API_URL || 'https://api.dictionaryapi.dev/api/v2/entries/en';
   try {
-    const response = await fetch(`${apiUrl}/${encodeURIComponent(word.toLowerCase())}`);
-    if (!response.ok) return null;
+    // 使用有道词典API（免费，无需API Key）
+    const response = await fetch(
+      `https://dict.youdao.com/jsonapi?q=${encodeURIComponent(word)}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('词典查询失败');
+    }
+    
     const data = await response.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
-
-    const entry = data[0];
-    const phonetic = entry.phonetic || entry.phonetics?.find(p => p.text)?.text || '';
-    const meanings = entry.meanings?.map(m => ({
-      partOfSpeech: m.partOfSpeech,
-      definitions: m.definitions?.slice(0, 3).map(d => d.definition),
-    })) || [];
-    const meaningText = meanings.map(m => `${m.partOfSpeech}. ${m.definitions?.join('; ')}`).join(' | ');
-
-    return { meaning: meaningText || '（未找到词义）', phonetic };
-  } catch (err) {
-    return null;
+    
+    // 提取中文释义
+    let meaning = '未找到释义';
+    let phonetic = '';
+    
+    // 解析有道返回的数据结构
+    if (data.ec && data.ec.word && data.ec.word.trs) {
+      const trs = data.ec.word.trs;
+      if (trs.length > 0) {
+        // 提取中文翻译
+        const translations = trs.map(t => {
+          if (t.tr && t.tr.length > 0) {
+            return t.tr.map(tr => tr.l?.i || '').filter(Boolean).join('；');
+          }
+          return '';
+        }).filter(Boolean);
+        meaning = translations.join('；') || '未找到释义';
+      }
+    }
+    
+    // 提取音标
+    if (data.ec && data.ec.word && data.ec.word.phone) {
+      phonetic = data.ec.word.phone;
+    }
+    
+    return { meaning, phonetic };
+  } catch (error) {
+    console.error('词典查询失败:', error.message);
+    // 返回默认值
+    return {
+      meaning: '（查询失败，请手动输入释义）',
+      phonetic: ''
+    };
   }
 }
 
