@@ -1011,6 +1011,7 @@
               method: 'POST',
               body: JSON.stringify(dictationConfig),
             });
+            if (typeof data.content === 'string') data.content = JSON.parse(data.content);
             dictationExercise.value = data;
             dictationIndex.value = 0;
             dictationAnswer.value = '';
@@ -1049,6 +1050,7 @@
               method: 'POST',
               body: JSON.stringify({ type, wordCount: 8, difficulty: 3 }),
             });
+            if (typeof data.content === 'string') data.content = JSON.parse(data.content);
             currentExercise.value = data;
             showToast('题目生成成功！', 'success');
           } catch (err) { showToast(err.message, 'error'); }
@@ -1085,7 +1087,7 @@
               method: 'POST',
               body: JSON.stringify(writingForm),
             });
-            writingFeedback.value = data.aiFeedback;
+            writingFeedback.value = typeof data.aiFeedback === 'string' ? JSON.parse(data.aiFeedback) : data.aiFeedback;
             showToast(`批改完成！得分 ${data.score || 'N/A'}`, 'success');
             loadWritings();
             loadStats();
@@ -1094,7 +1096,13 @@
         }
 
         async function loadWritings() {
-          try { writings.value = await api('/writings'); }
+          try {
+            const list = await api('/writings');
+            writings.value = list.map(w => {
+              if (typeof w.aiFeedback === 'string') { try { w.aiFeedback = JSON.parse(w.aiFeedback); } catch {} }
+              return w;
+            });
+          }
           catch (err) { showToast(err.message, 'error'); }
         }
 
