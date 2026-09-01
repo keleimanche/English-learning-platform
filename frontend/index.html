@@ -146,6 +146,52 @@
             </div>
             <button @click="feedbackModal = true" class="px-4 py-2 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">反馈</button>
           </div>
+
+          <!-- 会员状态卡片 -->
+          <div v-if="userUsage" class="bg-gradient-to-r rounded-2xl p-5 border shadow-sm"
+            :class="userUsage.plan === 'pro' || userUsage.plan === 'tester' || userUsage.plan === 'admin' ? 'from-amber-50 to-yellow-50 border-amber-200' : 'from-slate-50 to-slate-100 border-slate-200'">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">{{ userUsage.plan === 'pro' ? '💎' : userUsage.plan === 'tester' ? '🧪' : userUsage.plan === 'admin' ? '👑' : '🆓' }}</span>
+                <div>
+                  <h4 class="font-semibold text-slate-800">
+                    {{ userUsage.plan === 'pro' ? '专业版会员' : userUsage.plan === 'tester' ? '测试员' : userUsage.plan === 'admin' ? '管理员' : '免费版' }}
+                    <span v-if="userUsage.planExpiresAt" class="text-xs font-normal text-slate-500 ml-2">到期: {{ formatDate(userUsage.planExpiresAt) }}</span>
+                  </h4>
+                  <p class="text-sm text-slate-500" v-if="userUsage.plan === 'free'">升级专业版，解锁无限AI批改与出题</p>
+                </div>
+              </div>
+              <button v-if="userUsage.plan === 'free'" @click="currentTab = 'pricing'" class="px-4 py-2 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-all text-sm">💎 升级专业版</button>
+            </div>
+            <!-- 额度明细 -->
+            <div class="grid grid-cols-3 gap-3 mt-4">
+              <div class="bg-white/60 rounded-xl p-3 text-center">
+                <div class="text-xs text-slate-500 mb-1">AI写作批改</div>
+                <div class="font-bold text-slate-800 text-sm">
+                  <span v-if="userUsage.remaining.writing === Infinity">∞ 无限</span>
+                  <span v-else>{{ userUsage.remaining.writing }} / {{ userUsage.limits.writingDailyLimit }} 次</span>
+                </div>
+                <div class="text-xs text-slate-400">今日剩余</div>
+              </div>
+              <div class="bg-white/60 rounded-xl p-3 text-center">
+                <div class="text-xs text-slate-500 mb-1">智能出题</div>
+                <div class="font-bold text-slate-800 text-sm">
+                  <span v-if="userUsage.remaining.exercise === Infinity">∞ 无限</span>
+                  <span v-else>{{ userUsage.remaining.exercise }} / {{ userUsage.limits.exerciseDailyLimit }} 次</span>
+                </div>
+                <div class="text-xs text-slate-400">今日剩余</div>
+              </div>
+              <div class="bg-white/60 rounded-xl p-3 text-center">
+                <div class="text-xs text-slate-500 mb-1">错词本</div>
+                <div class="font-bold text-slate-800 text-sm">
+                  <span v-if="userUsage.remaining.wrongWords === Infinity">∞ 无限</span>
+                  <span v-else>{{ userUsage.used.wrongWords }} / {{ userUsage.limits.wrongWordsLimit }} 个</span>
+                </div>
+                <div class="text-xs text-slate-400">已用/上限</div>
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
               <div class="flex items-center justify-between mb-2">
@@ -681,6 +727,171 @@
           </div>
         </section>
 
+        <!-- ====== 会员定价 ====== -->
+        <section v-if="currentTab === 'pricing'" class="space-y-6">
+          <div class="text-center py-4">
+            <h2 class="text-3xl font-bold text-slate-800 mb-2">💎 选择适合你的套餐</h2>
+            <p class="text-slate-500">升级专业版，解锁全部AI功能，让英语学习更高效</p>
+          </div>
+
+          <!-- 当前套餐提示 -->
+          <div v-if="userUsage && userUsage.plan !== 'free'" class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+            <p class="text-amber-700">
+              ✅ 你当前是 <strong>{{ userUsage.plan === 'pro' ? '专业版' : userUsage.plan === 'tester' ? '测试员' : userUsage.plan === 'admin' ? '管理员' : '免费版' }}</strong>
+              <span v-if="userUsage.planExpiresAt">，到期时间: {{ formatDate(userUsage.planExpiresAt) }}</span>
+            </p>
+          </div>
+
+          <!-- 套餐卡片 -->
+          <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- 免费版 -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+              <div class="text-center mb-4">
+                <span class="text-4xl">🆓</span>
+                <h3 class="font-bold text-slate-800 text-lg mt-2">免费版</h3>
+                <p class="text-slate-400 text-sm">体验产品功能</p>
+              </div>
+              <div class="text-center mb-4">
+                <span class="text-3xl font-bold text-slate-800">¥0</span>
+                <span class="text-slate-400 text-sm">/永久</span>
+              </div>
+              <ul class="space-y-2 text-sm text-slate-600 mb-4 flex-1">
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>AI写作批改: 每日3次</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>错词本: 最多50个</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>智能出题: 每日1次</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>听写练习</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>写作历史</li>
+              </ul>
+              <button v-if="userUsage?.plan === 'free'" disabled class="w-full py-2.5 bg-slate-100 text-slate-400 rounded-xl font-medium cursor-not-allowed">当前套餐</button>
+            </div>
+
+            <!-- 专业版月付 -->
+            <div class="bg-white rounded-2xl p-6 border-2 border-indigo-500 shadow-lg flex flex-col relative">
+              <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-xs px-3 py-1 rounded-full">🔥 最受欢迎</div>
+              <div class="text-center mb-4">
+                <span class="text-4xl">💎</span>
+                <h3 class="font-bold text-slate-800 text-lg mt-2">专业版月付</h3>
+                <p class="text-slate-400 text-sm">深度学习用户</p>
+              </div>
+              <div class="text-center mb-4">
+                <span class="text-3xl font-bold text-indigo-600">¥29.9</span>
+                <span class="text-slate-400 text-sm">/月</span>
+              </div>
+              <ul class="space-y-2 text-sm text-slate-600 mb-4 flex-1">
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>AI写作批改: <strong>无限次</strong></li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>错词本: <strong>无限存储</strong></li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>智能出题: <strong>无限次</strong></li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>全部题库+范文库</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>万能句型库</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>优先客服响应</li>
+              </ul>
+              <button @click="createOrder('pro_monthly')" :disabled="payLoading" class="w-full py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all disabled:opacity-50">{{ payLoading ? '处理中...' : '立即订阅' }}</button>
+            </div>
+
+            <!-- 专业版年付 -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col relative">
+              <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-3 py-1 rounded-full">💰 立省159元</div>
+              <div class="text-center mb-4">
+                <span class="text-4xl">🏆</span>
+                <h3 class="font-bold text-slate-800 text-lg mt-2">专业版年付</h3>
+                <p class="text-slate-400 text-sm">长期备考推荐</p>
+              </div>
+              <div class="text-center mb-4">
+                <span class="text-3xl font-bold text-green-600">¥199</span>
+                <span class="text-slate-400 text-sm">/年</span>
+                <p class="text-xs text-slate-400 line-through mt-1">原价 ¥358.8</p>
+              </div>
+              <ul class="space-y-2 text-sm text-slate-600 mb-4 flex-1">
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>包含月付全部权益</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>年付立省159.8元</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>专属年度学习报告</li>
+              </ul>
+              <button @click="createOrder('pro_yearly')" :disabled="payLoading" class="w-full py-2.5 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all disabled:opacity-50">{{ payLoading ? '处理中...' : '立即订阅' }}</button>
+            </div>
+
+            <!-- 家庭版 -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+              <div class="text-center mb-4">
+                <span class="text-4xl">👨‍👩‍👧‍👦</span>
+                <h3 class="font-bold text-slate-800 text-lg mt-2">家庭版年付</h3>
+                <p class="text-slate-400 text-sm">5人共享权益</p>
+              </div>
+              <div class="text-center mb-4">
+                <span class="text-3xl font-bold text-purple-600">¥399</span>
+                <span class="text-slate-400 text-sm">/年</span>
+              </div>
+              <ul class="space-y-2 text-sm text-slate-600 mb-4 flex-1">
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>5个独立账号</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>共享Pro权益</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>共享错词本</li>
+                <li class="flex items-start gap-2"><span class="text-green-500">✓</span>共享写作题库</li>
+              </ul>
+              <button @click="createOrder('family_yearly')" :disabled="payLoading" class="w-full py-2.5 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-all disabled:opacity-50">{{ payLoading ? '处理中...' : '立即订阅' }}</button>
+            </div>
+          </div>
+
+          <!-- 支付说明 -->
+          <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 text-sm text-slate-600">
+            <h4 class="font-semibold text-slate-800 mb-2">💳 支付说明</h4>
+            <ul class="space-y-1 ml-4 list-disc">
+              <li>当前支持微信支付（通过PayJS安全支付通道）</li>
+              <li>支付成功后套餐立即生效，AI功能自动解锁</li>
+              <li>套餐到期后自动降级为免费版，不影响已存数据</li>
+              <li>如有支付问题，请通过反馈功能联系我们</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ====== 升级引导弹窗 ====== -->
+        <div v-if="upgradeModal.show" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="upgradeModal.show = false">
+          <div class="bg-white rounded-2xl max-w-md w-full p-6">
+            <div class="text-center mb-4">
+              <span class="text-5xl">💎</span>
+              <h3 class="text-xl font-bold text-slate-800 mt-2">升级专业版</h3>
+            </div>
+            <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+              <p class="text-orange-700 text-sm">{{ upgradeModal.message }}</p>
+            </div>
+            <div class="space-y-2 mb-4">
+              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>AI写作批改: 无限次使用</div>
+              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>错词本: 无限存储</div>
+              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>智能出题: 无限次生成</div>
+              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>解锁全部题库与范文库</div>
+            </div>
+            <div class="flex gap-3">
+              <button @click="upgradeModal.show = false" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200">稍后再说</button>
+              <button @click="upgradeModal.show = false; currentTab = 'pricing'" class="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">查看套餐</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== 支付二维码弹窗 ====== -->
+        <div v-if="payOrder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="payOrder = null">
+          <div class="bg-white rounded-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-slate-800">微信支付</h3>
+              <button @click="payOrder = null" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+            </div>
+            <div class="text-center">
+              <p class="text-slate-600 mb-2">{{ payOrder.name }}</p>
+              <p class="text-3xl font-bold text-indigo-600 mb-4">¥{{ payOrder.amount }}</p>
+              <div v-if="payOrder.payUrl" class="mb-4">
+                <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(payOrder.payUrl)" alt="支付二维码" class="mx-auto rounded-lg border border-slate-200" />
+                <p class="text-sm text-slate-500 mt-2">请用微信扫码支付</p>
+              </div>
+              <div v-else class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                <p class="text-orange-700 text-sm mb-2">⚠️ 支付通道未配置</p>
+                <p class="text-slate-600 text-xs">系统已创建订单，但PayJS支付通道未启用。请联系管理员手动激活，或配置PAYJS_MCHID和PAYJS_KEY环境变量。</p>
+                <p class="text-slate-500 text-xs mt-2">订单号: {{ payOrder.orderId }}</p>
+              </div>
+              <div class="bg-blue-50 rounded-xl p-3 text-sm text-slate-600">
+                <p>💡 支付成功后请点击下方按钮刷新状态</p>
+              </div>
+              <button @click="checkPayStatus" :disabled="payChecking" class="w-full mt-3 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all disabled:opacity-50">{{ payChecking ? '查询中...' : '我已支付，查询状态' }}</button>
+            </div>
+          </div>
+        </div>
+
         <!-- ====== 管理后台 ====== -->
         <section v-if="currentTab === 'admin' && user?.role === 'admin'" class="space-y-6">
           <!-- 管理主标签 -->
@@ -729,6 +940,23 @@
                   </div>
                 </div>
                 <div class="text-sm text-slate-500 mb-4">注册时间：{{ formatDate(adminUserDetail?.user?.createdAt || adminSelectedUser.createdAt) }}</div>
+
+                <!-- 套餐管理 -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                  <h4 class="font-medium text-slate-700 mb-2">💎 套餐管理</h4>
+                  <div class="flex items-center gap-3 flex-wrap">
+                    <span class="text-sm text-slate-600">当前: <strong>{{ adminSelectedUser.plan || 'free' }}</strong></span>
+                    <select v-model="adminPlanForm.plan" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+                      <option value="free">免费版</option>
+                      <option value="pro">专业版</option>
+                    </select>
+                    <select v-model="adminPlanForm.period" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+                      <option value="monthly">月付</option>
+                      <option value="yearly">年付</option>
+                    </select>
+                    <button @click="adminUpdatePlan" class="px-4 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600">激活</button>
+                  </div>
+                </div>
 
                 <!-- 写作得分趋势图 -->
                 <div v-if="adminScoreChartCoords.length >= 2" class="bg-slate-50 rounded-xl p-4">
@@ -1122,6 +1350,7 @@
           { id: 'writing', label: 'AI写作', icon: '✍️' },
           { id: 'history', label: '写作历史', icon: '📜' },
           { id: 'exerciseHistory', label: '练习历史', icon: '📋' },
+          { id: 'pricing', label: '会员', icon: '💎' },
         ];
         const tabs = computed(() => {
           const t = [...baseTabs];
@@ -1148,6 +1377,13 @@
         // ========== 练习历史 ==========
         const exerciseHistory = ref([]);
         const exerciseHistoryDetail = ref(null);
+
+        // ========== 会员与付费 ==========
+        const userUsage = ref(null);
+        const upgradeModal = reactive({ show: false, message: '' });
+        const payOrder = ref(null);
+        const payLoading = ref(false);
+        const payChecking = ref(false);
 
         // ========== 听写 ==========
         const dictationConfig = reactive({ count: 10, onlyHighFrequency: false, type: 'en2zh' });
@@ -1253,6 +1489,7 @@
         const adminLoading = reactive({ stats: false, users: false, detail: false });
         const adminSubTab = ref('overview');
         const adminMainTab = ref('users');
+        const adminPlanForm = reactive({ plan: 'free', period: 'monthly' });
         const adminFeedbacks = ref([]);
         const adminFeedbackFilter = ref('all');
         const adminAnnouncements = ref([]);
@@ -1300,6 +1537,18 @@
             u.role = newRole;
             const roleNames = { free: '普通用户', tester: '测试员', pro: '付费用户', admin: '管理员' };
             showToast(`已设为${roleNames[newRole]}`, 'success');
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function adminUpdatePlan() {
+          if (!adminSelectedUser.value) return;
+          try {
+            await api(`/admin/users/${adminSelectedUser.value.id}/plan`, {
+              method: 'POST',
+              body: JSON.stringify({ plan: adminPlanForm.plan, period: adminPlanForm.period }),
+            });
+            adminSelectedUser.value.plan = adminPlanForm.plan;
+            showToast(`套餐已更新为${adminPlanForm.plan === 'pro' ? '专业版' : '免费版'}`, 'success');
           } catch (err) { showToast(err.message, 'error'); }
         }
 
@@ -1358,7 +1607,12 @@
             user.value = null;
             throw new Error('登录已过期，请重新登录');
           }
-          if (!res.ok) throw new Error(data.error || '请求失败');
+          if (!res.ok) {
+            if (data.upgradeRequired) {
+              showUpgradeModal(data.error);
+            }
+            throw new Error(data.error || '请求失败');
+          }
           return data;
         }
 
@@ -1724,8 +1978,72 @@
         }
 
         // ========== 初始化 ==========
+        async function loadUsage() {
+          try {
+            const res = await fetch(`${API_BASE}/api/user/usage`, {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            });
+            if (res.status === 401) { logout(); return; }
+            if (res.ok) userUsage.value = await res.json();
+          } catch (e) { console.error('加载额度失败', e); }
+        }
+
+        function showUpgradeModal(message) {
+          upgradeModal.message = message || '当前功能已超出免费额度，升级专业版即可无限使用';
+          upgradeModal.show = true;
+        }
+
+        async function createOrder(planId) {
+          payLoading.value = true;
+          try {
+            const res = await fetch(`${API_BASE}/api/pay/order`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+              body: JSON.stringify({ planId }),
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.error || '创建订单失败');
+            }
+            const order = await res.json();
+            payOrder.value = order;
+            if (!order.payJsEnabled) {
+              showUpgradeModal('支付通道尚未配置，请联系管理员手动激活您的专业版套餐。');
+            }
+          } catch (e) {
+            alert(e.message);
+          } finally {
+            payLoading.value = false;
+          }
+        }
+
+        async function checkPayStatus() {
+          if (!payOrder.value) return;
+          payChecking.value = true;
+          try {
+            const res = await fetch(`${API_BASE}/api/pay/order/${payOrder.value.orderId}`, {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            });
+            if (res.ok) {
+              const order = await res.json();
+              if (order.status === 'paid') {
+                alert('✅ 支付成功！专业版已激活');
+                payOrder.value = null;
+                await loadUsage();
+                currentTab.value = 'dashboard';
+              } else {
+                alert('暂未查询到支付结果，请稍后再试。如已支付，请联系管理员。');
+              }
+            }
+          } catch (e) {
+            alert('查询失败: ' + e.message);
+          } finally {
+            payChecking.value = false;
+          }
+        }
+
         async function loadAllData() {
-          await Promise.all([loadWrongWords(), loadWritings(), loadStats(), loadAnnouncements(), loadMyFeedbacks(), loadExerciseHistory()]);
+          await Promise.all([loadWrongWords(), loadWritings(), loadStats(), loadAnnouncements(), loadMyFeedbacks(), loadExerciseHistory(), loadUsage()]);
           if (user.value?.role === 'admin') initAdmin();
         }
 
@@ -1753,13 +2071,15 @@
           toast, formatDate,
           adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
           adminUserDetail, adminLoading, adminSubTab,
-          initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, changeUserRole, adminDeleteWord,
+          initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, changeUserRole, adminDeleteWord, adminUpdatePlan, adminPlanForm,
           adminScoreChartCoords, adminScoreChartPoints, adminScoreChartArea,
           adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, replyForm,
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
           announcements, feedbackModal, feedbackForm, myFeedbacks,
           loadAnnouncements, submitFeedback, loadMyFeedbacks,
           exerciseHistory, exerciseHistoryDetail, loadExerciseHistory, viewExerciseDetail,
+          userUsage, upgradeModal, payOrder, payLoading, payChecking,
+          loadUsage, showUpgradeModal, createOrder, checkPayStatus,
         };
       }
     }).mount('#app');

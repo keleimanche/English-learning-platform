@@ -155,6 +155,121 @@ async function requireProAccess(req, res, next) {
 }
 
 // ============================================
+// 会员体系：套餐配置与额度管理
+// ============================================
+const PLAN_CONFIG = {
+  free: {
+    name: '免费版',
+    writingDailyLimit: 3,
+    exerciseDailyLimit: 1,
+    wrongWordsLimit: 50,
+    features: ['dictation', 'writingHistory', 'basicStats'],
+  },
+  pro: {
+    name: '专业版',
+    writingDailyLimit: Infinity,
+    exerciseDailyLimit: Infinity,
+    wrongWordsLimit: Infinity,
+    features: ['all'],
+  },
+  tester: {
+    name: '测试员',
+    writingDailyLimit: Infinity,
+    exerciseDailyLimit: Infinity,
+    wrongWordsLimit: Infinity,
+    features: ['all'],
+  },
+  admin: {
+    name: '管理员',
+    writingDailyLimit: Infinity,
+    exerciseDailyLimit: Infinity,
+    wrongWordsLimit: Infinity,
+    features: ['all'],
+  },
+};
+
+const PLAN_PRICES = {
+  pro_monthly: { plan: 'pro', period: 'monthly', amount: 29.9, name: '专业版月付' },
+  pro_yearly: { plan: 'pro', period: 'yearly', amount: 199, name: '专业版年付' },
+  family_yearly: { plan: 'pro', period: 'family_yearly', amount: 399, name: '家庭版年付(5人)' },
+};
+
+// 获取用户有效套餐（考虑过期）
+async function getUserPlan(userId) {
+  const users = await sbGet('User', `select=id,role,plan,"planExpiresAt","dailyUsage"&id=eq.${userId}`);
+  if (users.length === 0) return null;
+  const user = users[0];
+  let plan = user.plan || 'free';
+  const role = user.role || 'free';
+  if (['tester', 'admin'].includes(role)) plan = role;
+  if (plan === 'pro' && user.planExpiresAt) {
+    const expiresAt = new Date(user.planExpiresAt);
+    if (expiresAt < new Date()) {
+      plan = 'free';
+      await sbPatch('User', `id=eq.${userId}`, { plan: 'free' });
+    }
+  }
+  let dailyUsage = { writing: 0, exercise: 0, lastResetDate: '' };
+  if (user.dailyUsage) {
+    dailyUsage = typeof user.dailyUsage === 'string' ? JSON.parse(user.dailyUsage) : user.dailyUsage;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  if (dailyUsage.lastResetDate !== today) {
+    dailyUsage = { writing: 0, exercise: 0, lastResetDate: today };
+    await sbPatch('User', `id=eq.${userId}`, { dailyUsage });
+  }
+  return { plan, role, dailyUsage, raw: user };
+}
+
+// 中间件：检查AI功能额度（feature: 'writing' | 'exercise'）
+function checkQuota(feature) {
+  return async (req, res, next) => {
+    try {
+      const userPlan = await getUserPlan(req.userId);
+      if (!userPlan) return res.status(404).json({ error: '用户不存在' });
+      req.userPlan = userPlan;
+      const config = PLAN_CONFIG[userPlan.plan] || PLAN_CONFIG.free;
+      const limit = feature === 'writing' ? config.writingDailyLimit : config.exerciseDailyLimit;
+      const used = feature === 'writing' ? userPlan.dailyUsage.writing : userPlan.dailyUsage.exercise;
+      if (used >= limit) {
+        return res.status(403).json({
+          error: userPlan.plan === 'free' ? `免费额度已用完（今日${feature === 'writing' ? 'AI写作批改' : '智能出题'} ${limit} 次），升级专业版可无限使用` : '额度已用完',
+          upgradeRequired: true,
+          currentPlan: userPlan.plan,
+          feature,
+          used,
+          limit,
+        });
+      }
+      next();
+    } catch (err) {
+      res.status(500).json({ error: '额度检查失败: ' + err.message });
+    }
+  };
+}
+
+// 扣减额度（AI调用成功后执行）
+async function consumeQuota(userId, feature) {
+  try {
+    const userPlan = await getUserPlan(userId);
+    if (!userPlan) return;
+    const config = PLAN_CONFIG[userPlan.plan] || PLAN_CONFIG.free;
+    const limit = feature === 'writing' ? config.writingDailyLimit : config.exerciseDailyLimit;
+    if (limit === Infinity) return;
+    const today = new Date().toISOString().slice(0, 10);
+    let dailyUsage = userPlan.dailyUsage;
+    if (dailyUsage.lastResetDate !== today) {
+      dailyUsage = { writing: 0, exercise: 0, lastResetDate: today };
+    }
+    if (feature === 'writing') dailyUsage.writing = (dailyUsage.writing || 0) + 1;
+    else dailyUsage.exercise = (dailyUsage.exercise || 0) + 1;
+    await sbPatch('User', `id=eq.${userId}`, { dailyUsage });
+  } catch (err) {
+    console.error('扣减额度失败:', err.message);
+  }
+}
+
+// ============================================
 // AI 调用（兼容 OpenAI 接口）
 // ============================================
 async function callAI(messages, temperature = 0.7) {
@@ -289,13 +404,16 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString();
     const id = genId();
+    const today = new Date().toISOString().slice(0, 10);
     const user = await sbPost('User', {
       id, email, password: hashedPassword, name,
+      role: 'free', plan: 'free',
+      dailyUsage: { writing: 0, exercise: 0, lastResetDate: today },
       createdAt: now, updatedAt: now,
     });
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.status(201).json({ token, user: { id, email, name, role: 'user' } });
+    res.status(201).json({ token, user: { id, email, name, role: 'free', plan: 'free' } });
   } catch (err) {
     res.status(500).json({ error: '注册失败: ' + err.message });
   }
@@ -306,7 +424,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: '邮箱和密码为必填' });
 
-    const users = await sbGet('User', `select=id,email,password,name,role&email=eq.${encodeURIComponent(email)}`);
+    const users = await sbGet('User', `select=id,email,password,name,role,plan,"planExpiresAt"&email=eq.${encodeURIComponent(email)}`);
     const user = users[0];
     if (!user) return res.status(401).json({ error: '邮箱或密码错误' });
 
@@ -314,7 +432,14 @@ app.post('/api/auth/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: '邮箱或密码错误' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role || 'user' } });
+    res.json({
+      token,
+      user: {
+        id: user.id, email: user.email, name: user.name,
+        role: user.role || 'free', plan: user.plan || 'free',
+        planExpiresAt: user.planExpiresAt || null,
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: '登录失败: ' + err.message });
   }
@@ -350,6 +475,24 @@ app.post('/api/wrong-words', authenticate, async (req, res) => {
       });
       await updateStats(req.userId);
       return res.json(updated);
+    }
+
+    const userPlan = await getUserPlan(req.userId);
+    if (userPlan) {
+      const config = PLAN_CONFIG[userPlan.plan] || PLAN_CONFIG.free;
+      if (config.wrongWordsLimit !== Infinity) {
+        const countResult = await sbCount('WrongWord', `"userId"=eq.${req.userId}`);
+        if (countResult >= config.wrongWordsLimit) {
+          return res.status(403).json({
+            error: `免费版错词本最多存储 ${config.wrongWordsLimit} 个单词，升级专业版可无限存储`,
+            upgradeRequired: true,
+            currentPlan: userPlan.plan,
+            feature: 'wrongWords',
+            used: countResult,
+            limit: config.wrongWordsLimit,
+          });
+        }
+      }
     }
 
     const meaningData = await fetchWordMeaning(trimmedWord);
@@ -473,7 +616,7 @@ app.post('/api/exercises/dictation', authenticate, async (req, res) => {
 // ============================================
 // 4. 阅读理解 / 完型填空（AI 生成）
 // ============================================
-app.post('/api/exercises/generate', authenticate, requireProAccess, async (req, res) => {
+app.post('/api/exercises/generate', authenticate, checkQuota('exercise'), async (req, res) => {
   try {
     const { type = 'reading', wordCount = 8, difficulty = 3, examType = 'zhongkao' } = req.body;
     const words = await sbGet('WrongWord',
@@ -537,6 +680,7 @@ app.post('/api/exercises/generate', authenticate, requireProAccess, async (req, 
       createdAt: new Date().toISOString(),
       userId: req.userId,
     });
+    await consumeQuota(req.userId, 'exercise');
     res.json(exercise);
   } catch (err) {
     res.status(500).json({ error: '生成题目失败: ' + err.message });
@@ -573,7 +717,7 @@ app.get('/api/exercises/:id', authenticate, async (req, res) => {
 // ============================================
 // 5. 写作批改（AI）
 // ============================================
-app.post('/api/writings/grade', authenticate, requireProAccess, async (req, res) => {
+app.post('/api/writings/grade', authenticate, checkQuota('writing'), async (req, res) => {
   try {
     const { title, content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: '写作内容不能为空' });
@@ -618,6 +762,7 @@ ${content}
       userId: req.userId,
     });
     await updateStats(req.userId);
+    await consumeQuota(req.userId, 'writing');
     res.json(writing);
   } catch (err) {
     res.status(500).json({ error: '写作批改失败: ' + err.message });
@@ -627,7 +772,7 @@ ${content}
 // ============================================
 // 5.5 AI 生成写作提纲
 // ============================================
-app.post('/api/writings/outline', authenticate, requireProAccess, async (req, res) => {
+app.post('/api/writings/outline', authenticate, checkQuota('writing'), async (req, res) => {
   try {
     const { title, content } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: '请先选择题目或输入标题' });
@@ -1022,6 +1167,226 @@ app.patch('/api/admin/announcements/:id', authenticate, requireAdmin, async (req
 });
 
 // ============================================
+// 10. 会员体系 - 查询套餐和额度
+// ============================================
+app.get('/api/user/usage', authenticate, async (req, res) => {
+  try {
+    const userPlan = await getUserPlan(req.userId);
+    if (!userPlan) return res.status(404).json({ error: '用户不存在' });
+    const config = PLAN_CONFIG[userPlan.plan] || PLAN_CONFIG.free;
+    const wrongWordsCount = await sbCount('WrongWord', `"userId"=eq.${req.userId}`);
+    res.json({
+      plan: userPlan.plan,
+      role: userPlan.role,
+      planExpiresAt: userPlan.raw.planExpiresAt || null,
+      dailyUsage: userPlan.dailyUsage,
+      limits: {
+        writingDailyLimit: config.writingDailyLimit,
+        exerciseDailyLimit: config.exerciseDailyLimit,
+        wrongWordsLimit: config.wrongWordsLimit,
+      },
+      used: {
+        writingToday: userPlan.dailyUsage.writing || 0,
+        exerciseToday: userPlan.dailyUsage.exercise || 0,
+        wrongWords: wrongWordsCount,
+      },
+      remaining: {
+        writing: config.writingDailyLimit === Infinity ? Infinity : Math.max(0, config.writingDailyLimit - (userPlan.dailyUsage.writing || 0)),
+        exercise: config.exerciseDailyLimit === Infinity ? Infinity : Math.max(0, config.exerciseDailyLimit - (userPlan.dailyUsage.exercise || 0)),
+        wrongWords: config.wrongWordsLimit === Infinity ? Infinity : Math.max(0, config.wrongWordsLimit - wrongWordsCount),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: '查询额度失败: ' + err.message });
+  }
+});
+
+// 获取套餐价格列表
+app.get('/api/plans', (req, res) => {
+  res.json({
+    plans: [
+      {
+        id: 'free', name: '免费版', price: 0, period: 'forever',
+        features: [
+          'AI写作批改：每日3次',
+          '错词本：最多50个单词',
+          '智能出题：每日1次',
+          '听写练习',
+          '写作历史',
+          '基础统计',
+        ],
+      },
+      {
+        id: 'pro_monthly', name: '专业版月付', price: 29.9, period: 'monthly',
+        features: [
+          'AI写作批改：无限次',
+          '错词本：无限存储',
+          '智能出题：无限次+全部题库',
+          '高分范文库+万能句型库',
+          '写作历史导出(PDF/Word)',
+          '优先客服响应',
+        ],
+        popular: true,
+      },
+      {
+        id: 'pro_yearly', name: '专业版年付', price: 199, period: 'yearly', originalPrice: 358.8,
+        features: [
+          '包含专业版月付全部权益',
+          '年付立省159.8元',
+          '专属年度学习报告',
+        ],
+      },
+      {
+        id: 'family_yearly', name: '家庭版年付', price: 399, period: 'family_yearly',
+        features: [
+          '5个独立账号',
+          '共享Pro权益',
+          '共享错词本',
+          '共享写作题目库',
+          '便于协作学习',
+        ],
+      },
+    ],
+  });
+});
+
+// ============================================
+// 11. 支付接口（PayJS）
+// ============================================
+// 创建支付订单
+app.post('/api/pay/order', authenticate, async (req, res) => {
+  try {
+    const { planId } = req.body;
+    const priceConfig = PLAN_PRICES[planId];
+    if (!priceConfig) return res.status(400).json({ error: '无效的套餐ID' });
+
+    const orderId = genId();
+    const now = new Date();
+    const expiredAt = new Date(now.getTime() + 30 * 60 * 1000);
+
+    const order = await sbPost('PaymentOrder', {
+      id: orderId,
+      userId: req.userId,
+      plan: priceConfig.plan,
+      amount: priceConfig.amount,
+      period: priceConfig.period,
+      status: 'pending',
+      createdAt: now.toISOString(),
+      expiredAt: expiredAt.toISOString(),
+    });
+
+    let payUrl = null;
+    let payJsOrderId = null;
+    if (process.env.PAYJS_MCHID && process.env.PAYJS_KEY) {
+      const payJsParams = {
+        mchid: process.env.PAYJS_MCHID,
+        out_trade_no: orderId,
+        total_fee: Math.round(priceConfig.amount * 100),
+        body: priceConfig.name,
+        notify_url: `${process.env.BACKEND_URL || 'https://english-learning-platform-yj04.onrender.com'}/api/pay/callback`,
+      };
+      const sortedKeys = Object.keys(payJsParams).sort();
+      const signStr = sortedKeys.map(k => `${k}=${payJsParams[k]}`).join('&') + `&key=${process.env.PAYJS_KEY}`;
+      const sign = crypto.createHash('md5').update(signStr).digest('hex');
+      const payJsRes = await fetch('https://payjs.cn/api/native', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payJsParams, sign }),
+      });
+      const payJsData = await payJsRes.json();
+      if (payJsData.return_code === 1) {
+        payUrl = payJsData.qrcode;
+        payJsOrderId = payJsData.payjs_order_id;
+        await sbPatch('PaymentOrder', `id=eq.${orderId}`, { payUrl, payJsOrderId });
+      }
+    }
+
+    res.json({
+      orderId,
+      plan: priceConfig.plan,
+      period: priceConfig.period,
+      amount: priceConfig.amount,
+      name: priceConfig.name,
+      payUrl,
+      expiredAt: expiredAt.toISOString(),
+      payJsEnabled: !!(process.env.PAYJS_MCHID && process.env.PAYJS_KEY),
+    });
+  } catch (err) {
+    res.status(500).json({ error: '创建订单失败: ' + err.message });
+  }
+});
+
+// 查询订单状态
+app.get('/api/pay/order/:id', authenticate, async (req, res) => {
+  try {
+    const orders = await sbGet('PaymentOrder',
+      `select=id,"userId",plan,amount,period,status,"payUrl","paidAt","createdAt","expiredAt"&id=eq.${req.params.id}&"userId"=eq.${req.userId}`
+    );
+    if (orders.length === 0) return res.status(404).json({ error: '订单不存在' });
+    res.json(orders[0]);
+  } catch (err) {
+    res.status(500).json({ error: '查询订单失败: ' + err.message });
+  }
+});
+
+// PayJS 支付回调
+app.post('/api/pay/callback', async (req, res) => {
+  try {
+    const { return_code, out_trade_no, payjs_order_id, total_fee } = req.body;
+    if (return_code !== 1) return res.send('fail');
+
+    const orders = await sbGet('PaymentOrder', `select=id,"userId",plan,period,amount,status&id=eq.${out_trade_no}`);
+    if (orders.length === 0) return res.send('fail');
+    const order = orders[0];
+    if (order.status === 'paid') return res.send('success');
+
+    const now = new Date();
+    let expiresAt = null;
+    if (order.period === 'monthly') {
+      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    } else if (order.period === 'yearly' || order.period === 'family_yearly') {
+      expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    await sbPatch('PaymentOrder', `id=eq.${out_trade_no}`, {
+      status: 'paid',
+      paidAt: now.toISOString(),
+    });
+    await sbPatch('User', `id=eq.${order.userId}`, {
+      plan: order.plan,
+      planExpiresAt: expiresAt,
+    });
+
+    res.send('success');
+  } catch (err) {
+    console.error('支付回调失败:', err.message);
+    res.send('fail');
+  }
+});
+
+// 手动激活套餐（管理员专用，用于测试或线下支付）
+app.post('/api/admin/users/:userId/plan', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { plan, period = 'monthly' } = req.body;
+    if (!['free', 'pro'].includes(plan)) return res.status(400).json({ error: 'plan 必须是 free 或 pro' });
+    const now = new Date();
+    let expiresAt = null;
+    if (plan === 'pro') {
+      if (period === 'monthly') expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      else if (period === 'yearly') expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      else expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    const updated = await sbPatch('User', `id=eq.${req.params.userId}`, {
+      plan,
+      planExpiresAt: expiresAt,
+    });
+    res.json({ message: '套餐更新成功', plan, planExpiresAt: expiresAt });
+  } catch (err) {
+    res.status(500).json({ error: '更新套餐失败: ' + err.message });
+  }
+});
+
+// ============================================
 // 健康检查
 // ============================================
 app.get('/', (req, res) => {
@@ -1056,5 +1421,6 @@ app.listen(PORT, async () => {
   console.log(`GET/POST/PUT/DELETE /api/wrongwords - server.js:854`);
   console.log(`POST /api/exercises/dictation | /api/exercises/generate - server.js:855`);
   console.log(`POST /api/writings/grade | GET /api/writings - server.js:856`);
-  console.log(`GET /api/stats\n - server.js:857`);
+  console.log(`GET /api/user/usage | /api/plans | /api/pay/order - server.js:857`);
+  console.log(`POST /api/pay/callback | /api/admin/users/:id/plan\n - server.js:858`);
 });
