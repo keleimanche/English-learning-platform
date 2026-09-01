@@ -559,6 +559,33 @@
           </div>
         </section>
 
+        <!-- ====== 练习历史 ====== -->
+        <section v-if="currentTab === 'exerciseHistory'" class="space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="font-semibold text-slate-800 mb-4">📋 练习历史</h3>
+            <div v-if="exerciseHistory.length === 0" class="text-center text-slate-400 py-12">
+              <span class="text-4xl block mb-3">📋</span>
+              <p>还没有练习记录，去做些练习吧！</p>
+            </div>
+            <div class="space-y-3">
+              <div v-for="e in exerciseHistory" :key="e.id" class="border border-slate-100 rounded-xl p-4 hover:border-indigo-200 transition-all">
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ e.type === 'reading' ? '📖' : e.type === 'cloze' ? '✏️' : '🎧' }}</span>
+                    <span class="font-medium text-slate-800">{{ e.type === 'reading' ? '阅读理解' : e.type === 'cloze' ? '完型填空' : '听写测试' }}</span>
+                  </div>
+                  <span class="text-xs text-slate-400">{{ formatDate(e.createdAt) }}</span>
+                </div>
+                <div class="flex flex-wrap gap-1 mb-2">
+                  <span v-for="w in (e.targetWords || []).slice(0, 8)" :key="w" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ w }}</span>
+                  <span v-if="(e.targetWords || []).length > 8" class="text-xs text-slate-400">+{{ e.targetWords.length - 8 }}</span>
+                </div>
+                <button @click="viewExerciseDetail(e)" class="text-sm text-indigo-500 hover:text-indigo-700 font-medium">查看详情 →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ====== 管理后台 ====== -->
         <section v-if="currentTab === 'admin' && user?.role === 'admin'" class="space-y-6">
           <!-- 管理主标签 -->
@@ -859,6 +886,69 @@
 
       </main>
 
+      <!-- 练习历史详情弹窗 -->
+      <div v-if="exerciseHistoryDetail" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="exerciseHistoryDetail = null">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+              <span>{{ exerciseHistoryDetail.type === 'reading' ? '📖' : exerciseHistoryDetail.type === 'cloze' ? '✏️' : '🎧' }}</span>
+              {{ exerciseHistoryDetail.type === 'reading' ? '阅读理解' : exerciseHistoryDetail.type === 'cloze' ? '完型填空' : '听写测试' }}
+            </h3>
+            <button @click="exerciseHistoryDetail = null" class="text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">{{ formatDate(exerciseHistoryDetail.createdAt) }}</p>
+
+          <!-- 阅读理解 -->
+          <div v-if="exerciseHistoryDetail.type === 'reading' && exerciseHistoryDetail.content">
+            <div class="bg-slate-50 rounded-xl p-5 mb-5 leading-relaxed text-slate-700 whitespace-pre-wrap">{{ exerciseHistoryDetail.content.passage }}</div>
+            <div class="space-y-4">
+              <div v-for="(q, qi) in exerciseHistoryDetail.content.questions" :key="qi" class="border border-slate-100 rounded-xl p-4">
+                <p class="font-medium text-slate-800 mb-3">{{ qi + 1 }}. {{ q.question }}</p>
+                <div class="space-y-2">
+                  <div v-for="(opt, oi) in q.options" :key="oi"
+                    :class="String.fromCharCode(65 + oi) === q.answer ? 'bg-green-50 border-green-300' : ''"
+                    class="flex items-center gap-2 p-2 rounded-lg border border-transparent">
+                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
+                    <span v-if="String.fromCharCode(65 + oi) === q.answer" class="ml-auto text-green-500">✓ 正确答案</span>
+                  </div>
+                </div>
+                <div v-if="q.explanation" class="mt-2 text-sm text-slate-600 bg-blue-50 p-2 rounded">💡 {{ q.explanation }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 完型填空 -->
+          <div v-if="exerciseHistoryDetail.type === 'cloze' && exerciseHistoryDetail.content">
+            <div class="bg-slate-50 rounded-xl p-5 mb-5 leading-relaxed text-slate-700 whitespace-pre-wrap">{{ exerciseHistoryDetail.content.passage }}</div>
+            <div class="space-y-4">
+              <div v-for="(blank, bi) in exerciseHistoryDetail.content.blanks" :key="bi" class="border border-slate-100 rounded-xl p-4">
+                <p class="font-medium text-slate-800 mb-2">第 {{ blank.index }} 空</p>
+                <div class="space-y-1">
+                  <div v-for="(opt, oi) in blank.options" :key="oi"
+                    :class="opt === blank.answer ? 'bg-green-50 border-green-300' : ''"
+                    class="flex items-center gap-2 p-2 rounded-lg border border-transparent">
+                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
+                    <span v-if="opt === blank.answer" class="ml-auto text-green-500">✓ 正确答案</span>
+                  </div>
+                </div>
+                <div v-if="blank.explanation" class="mt-2 text-sm text-slate-600 bg-blue-50 p-2 rounded">💡 {{ blank.explanation }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 听写 -->
+          <div v-if="exerciseHistoryDetail.type === 'dictation' && exerciseHistoryDetail.content">
+            <div class="space-y-2">
+              <div v-for="(w, wi) in exerciseHistoryDetail.content.words" :key="wi" class="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                <span class="font-mono font-medium text-slate-800">{{ w.word }}</span>
+                <span class="text-slate-500 text-sm">{{ w.meaning }}</span>
+                <span v-if="w.phonetic" class="text-slate-400 text-sm">{{ w.phonetic }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 反馈弹窗 -->
       <div v-if="feedbackModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="feedbackModal = false">
         <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
@@ -931,6 +1021,7 @@
           { id: 'exercises', label: '智能出题', icon: '🧠' },
           { id: 'writing', label: 'AI写作', icon: '✍️' },
           { id: 'history', label: '写作历史', icon: '📜' },
+          { id: 'exerciseHistory', label: '练习历史', icon: '📋' },
         ];
         const tabs = computed(() => {
           const t = [...baseTabs];
@@ -953,6 +1044,10 @@
         const feedbackModal = ref(false);
         const feedbackForm = reactive({ title: '', content: '', category: 'suggestion' });
         const myFeedbacks = ref([]);
+
+        // ========== 练习历史 ==========
+        const exerciseHistory = ref([]);
+        const exerciseHistoryDetail = ref(null);
 
         // ========== 听写 ==========
         const dictationConfig = reactive({ count: 10, onlyHighFrequency: false, type: 'en2zh' });
@@ -1362,6 +1457,22 @@
           } catch (err) { showToast(err.message, 'error'); }
         }
 
+        // ========== 练习历史 ==========
+        async function loadExerciseHistory() {
+          try {
+            const list = await api('/exercises?limit=50');
+            exerciseHistory.value = list.map(e => {
+              if (typeof e.content === 'string') { try { e.content = JSON.parse(e.content); } catch {} }
+              return e;
+            });
+          } catch (err) { console.error(err); }
+        }
+
+        function viewExerciseDetail(e) {
+          if (typeof e.content === 'string') { try { e.content = JSON.parse(e.content); } catch {} }
+          exerciseHistoryDetail.value = e;
+        }
+
         // ========== 进步曲线 ==========
         const scoreChartCoords = computed(() => {
           const writings = stats.value.recentWritings || [];
@@ -1389,7 +1500,7 @@
 
         // ========== 初始化 ==========
         async function loadAllData() {
-          await Promise.all([loadWrongWords(), loadWritings(), loadStats(), loadAnnouncements(), loadMyFeedbacks()]);
+          await Promise.all([loadWrongWords(), loadWritings(), loadStats(), loadAnnouncements(), loadMyFeedbacks(), loadExerciseHistory()]);
           if (user.value?.role === 'admin') initAdmin();
         }
 
@@ -1418,6 +1529,7 @@
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
           announcements, feedbackModal, feedbackForm, myFeedbacks,
           loadAnnouncements, submitFeedback, loadMyFeedbacks,
+          exerciseHistory, exerciseHistoryDetail, loadExerciseHistory, viewExerciseDetail,
         };
       }
     }).mount('#app');

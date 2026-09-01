@@ -543,6 +543,18 @@ app.get('/api/exercises', authenticate, async (req, res) => {
   }
 });
 
+app.get('/api/exercises/:id', authenticate, async (req, res) => {
+  try {
+    const exercises = await sbGet('Exercise',
+      `select=id,type,content,"targetWords",difficulty,"createdAt"&id=eq.${req.params.id}&"userId"=eq.${req.userId}`
+    );
+    if (exercises.length === 0) return res.status(404).json({ error: '练习不存在' });
+    res.json(exercises[0]);
+  } catch (err) {
+    res.status(500).json({ error: '获取练习详情失败: ' + err.message });
+  }
+});
+
 // ============================================
 // 5. 写作批改（AI）
 // ============================================
