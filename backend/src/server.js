@@ -571,9 +571,14 @@ app.post('/api/writings/grade', authenticate, async (req, res) => {
 ${content}
 
 请返回 JSON 格式（不要包含 markdown 代码块标记）：
-{"score":85,"overallComment":"中文总体评价","corrections":[{"original":"错误片段","corrected":"正确表达","reason":"中文修改原因"}],"strengths":["中文优点1"],"suggestions":["中文建议1"],"vocabularyAnalysis":"中文词汇分析","grammarAnalysis":"中文语法分析","structureAnalysis":"中文结构分析"}
+{"score":85,"dimensionScores":{"内容":85,"结构":80,"词汇":75,"语法":70},"errorStats":{"语法错误":2,"词汇错误":3,"拼写错误":1},"overallComment":"中文总体评价","corrections":[{"type":"语法错误","original":"错误片段","corrected":"正确表达","reason":"中文修改原因"}],"strengths":["中文优点1"],"suggestions":["中文建议1"]}
 
-评分标准：0-100 分。所有字段内容必须用中文。`;
+要求：
+1. score为总分0-100
+2. dimensionScores从"内容""结构""词汇""语法"四个维度分别打分0-100
+3. errorStats统计各类错误数量（语法错误/词汇错误/拼写错误/其他）
+4. corrections中每项需标注type（错误类型）
+5. 所有字段内容必须用中文`;
 
     const aiResponse = await callAI([
       { role: 'system', content: '你是专业的英语写作老师，擅长批改英语作文并给出建设性反馈。所有反馈内容必须用中文。只返回纯JSON，不要包含任何markdown标记。' },
@@ -601,6 +606,41 @@ ${content}
     res.json(writing);
   } catch (err) {
     res.status(500).json({ error: '写作批改失败: ' + err.message });
+  }
+});
+
+// ============================================
+// 5.5 AI 生成写作提纲
+// ============================================
+app.post('/api/writings/outline', authenticate, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: '请先选择题目或输入标题' });
+
+    const prompt = `你是一位英语写作辅导老师。请根据以下作文题目，生成一个三段式写作提纲（开头-主体-结尾）。所有内容用中文。
+
+题目：${title}
+${content ? `学生已写内容：${content.slice(0, 200)}` : ''}
+
+请返回 JSON 格式（不要包含 markdown 代码块标记）：
+{"introduction":"开头段写作思路和要点（中文）","body":"主体段写作思路和要点（中文）","conclusion":"结尾段写作思路和要点（中文）"}
+
+要求：每段50-100字，给出具体的写作方向和要点提示。`;
+
+    const aiResponse = await callAI([
+      { role: 'system', content: '你是英语写作辅导老师，擅长指导学生构思作文结构。所有内容用中文。只返回纯JSON。' },
+      { role: 'user', content: prompt },
+    ], 0.7);
+
+    let outline;
+    try {
+      outline = JSON.parse(aiResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim());
+    } catch {
+      outline = { introduction: aiResponse, body: '', conclusion: '' };
+    }
+    res.json(outline);
+  } catch (err) {
+    res.status(500).json({ error: '生成提纲失败: ' + err.message });
   }
 });
 

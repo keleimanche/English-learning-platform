@@ -470,21 +470,97 @@
 
         <!-- ====== AI 写作批改 ====== -->
         <section v-if="currentTab === 'writing'" class="space-y-6">
+          <!-- 内置题库 -->
           <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <span>✍️</span> 写作练习
-              <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg ml-auto">AI 智能批改</span>
-            </h3>
+            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2"><span>📝</span> 内置题库</h3>
+            <div class="flex gap-2 mb-4">
+              <button @click="writingTopicFilter = 'all'" :class="writingTopicFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium">全部</button>
+              <button @click="writingTopicFilter = 'gaokao'" :class="writingTopicFilter === 'gaokao' ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium">高考</button>
+              <button @click="writingTopicFilter = 'cet4'" :class="writingTopicFilter === 'cet4' ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium">四级</button>
+              <button @click="writingTopicFilter = 'cet6'" :class="writingTopicFilter === 'cet6' ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium">六级</button>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div v-for="t in filteredWritingTopics" :key="t.id" @click="selectWritingTopic(t)" class="border border-slate-100 rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition-all">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs px-2 py-0.5 rounded" :class="t.examType === 'gaokao' ? 'bg-blue-50 text-blue-500' : t.examType === 'cet4' ? 'bg-green-50 text-green-500' : 'bg-purple-50 text-purple-500'">{{ t.examType === 'gaokao' ? '高考' : t.examType === 'cet4' ? '四级' : '六级' }}</span>
+                  <span class="text-xs text-slate-400">{{ t.category }}</span>
+                </div>
+                <div class="font-medium text-slate-800 text-sm">{{ t.title }}</div>
+                <div class="text-xs text-slate-500 mt-1 line-clamp-2">{{ t.prompt }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 写作区 -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-800 flex items-center gap-2"><span>✍️</span> 写作练习 <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">AI 智能批改</span></h3>
+              <!-- 计时器 -->
+              <div class="flex items-center gap-2">
+                <select v-if="!writingTimer.enabled" v-model.number="writingTimer.minutes" class="px-2 py-1 rounded-lg border border-slate-200 text-sm bg-white">
+                  <option :value="30">30分钟</option>
+                  <option :value="45">45分钟</option>
+                  <option :value="60">60分钟</option>
+                </select>
+                <button v-if="!writingTimer.enabled" @click="startWritingTimer" class="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-100">⏱ 开始计时</button>
+                <div v-else class="flex items-center gap-2">
+                  <span class="text-lg font-mono font-bold" :class="writingTimer.remaining < 300 ? 'text-red-500' : 'text-slate-700'">{{ timerDisplay }}</span>
+                  <button @click="stopWritingTimer" class="text-slate-400 hover:text-red-500 text-sm">停止</button>
+                </div>
+              </div>
+            </div>
             <input v-model="writingForm.title" type="text" placeholder="标题（可选）"
               class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none mb-3">
             <textarea v-model="writingForm.content" rows="10" placeholder="在这里写下你的英语作文..."
               class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none resize-y leading-relaxed"></textarea>
-            <div class="flex items-center justify-between mt-3">
-              <span class="text-sm text-slate-400">{{ writingWordCount }} 词</span>
+            <div class="flex items-center justify-between mt-3 flex-wrap gap-2">
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-slate-400">{{ writingWordCount }} 词</span>
+                <span v-if="draftSaved" class="text-xs text-green-500">✓ 草稿已保存</span>
+                <button @click="generateOutline" :disabled="writingOutlineLoading || !writingForm.title" class="text-sm text-indigo-500 hover:text-indigo-700 font-medium disabled:opacity-50">{{ writingOutlineLoading ? '生成中...' : '💡 生成提纲' }}</button>
+              </div>
               <button @click="submitWriting" :disabled="loading.writing || !writingForm.content.trim()"
                 class="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50">
                 {{ loading.writing ? 'AI 批改中...' : '提交批改' }}
               </button>
+            </div>
+          </div>
+
+          <!-- AI提纲 -->
+          <div v-if="writingOutline" class="bg-white rounded-2xl p-6 border border-indigo-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-slate-800">💡 写作提纲</h3>
+              <button @click="writingOutline = null" class="text-slate-400 hover:text-slate-600 text-sm">关闭</button>
+            </div>
+            <div class="space-y-3">
+              <div v-if="writingOutline.introduction" class="bg-blue-50 rounded-xl p-4">
+                <h4 class="font-medium text-blue-700 mb-1">开头段</h4>
+                <p class="text-sm text-slate-700">{{ writingOutline.introduction }}</p>
+              </div>
+              <div v-if="writingOutline.body" class="bg-indigo-50 rounded-xl p-4">
+                <h4 class="font-medium text-indigo-700 mb-1">主体段</h4>
+                <p class="text-sm text-slate-700">{{ writingOutline.body }}</p>
+              </div>
+              <div v-if="writingOutline.conclusion" class="bg-purple-50 rounded-xl p-4">
+                <h4 class="font-medium text-purple-700 mb-1">结尾段</h4>
+                <p class="text-sm text-slate-700">{{ writingOutline.conclusion }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 万能句型库 -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2"><span>💡</span> 万能句型库</h3>
+            <div class="flex gap-2 mb-4 flex-wrap">
+              <button v-for="cat in writingSentenceCategories" :key="cat" @click="writingSentenceCategory = cat"
+                :class="writingSentenceCategory === cat ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'"
+                class="px-3 py-1.5 rounded-lg text-sm font-medium">{{ cat === 'all' ? '全部' : cat }}</button>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-2">
+              <div v-for="(s, i) in filteredWritingSentences" :key="i" class="bg-slate-50 rounded-lg p-3">
+                <p class="text-sm text-slate-800 font-medium">{{ s.en }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ s.zh }}</p>
+              </div>
             </div>
           </div>
 
@@ -497,6 +573,24 @@
               </div>
             </div>
 
+            <!-- 多维度评分 -->
+            <div v-if="writingFeedback.dimensionScores" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div v-for="(val, key) in writingFeedback.dimensionScores" :key="key" class="bg-slate-50 rounded-xl p-3 text-center">
+                <div class="text-xs text-slate-500 mb-1">{{ key }}</div>
+                <div class="text-xl font-bold" :class="val >= 80 ? 'text-green-500' : val >= 60 ? 'text-orange-500' : 'text-red-500'">{{ val }}</div>
+              </div>
+            </div>
+
+            <!-- 错误分类统计 -->
+            <div v-if="writingFeedback.errorStats" class="bg-red-50 rounded-xl p-4 mb-4">
+              <h4 class="font-medium text-red-700 mb-2">📊 错误分类统计</h4>
+              <div class="flex gap-3 flex-wrap">
+                <span v-for="(count, type) in writingFeedback.errorStats" :key="type" class="bg-white px-3 py-1 rounded-lg text-sm text-slate-700">
+                  {{ type }}: {{ count }}处
+                </span>
+              </div>
+            </div>
+
             <div v-if="writingFeedback.overallComment" class="bg-indigo-50 rounded-xl p-4 mb-4 text-slate-700">
               <strong>📝 总评：</strong>{{ writingFeedback.overallComment }}
             </div>
@@ -505,7 +599,8 @@
               <h4 class="font-medium text-slate-700 mb-2">🔍 逐句修改</h4>
               <div class="space-y-2">
                 <div v-for="(c, i) in writingFeedback.corrections" :key="i" class="bg-red-50 border border-red-100 rounded-xl p-3">
-                  <div class="flex items-center gap-2 mb-1">
+                  <div class="flex items-center gap-2 mb-1 flex-wrap">
+                    <span v-if="c.type" class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded">{{ c.type }}</span>
                     <span class="text-red-500 line-through">{{ c.original }}</span>
                     <span class="text-slate-400">→</span>
                     <span class="text-green-600 font-medium">{{ c.corrected }}</span>
@@ -1076,6 +1171,64 @@
         const writingFeedback = ref(null);
         const writingWordCount = computed(() => writingForm.content.trim() ? writingForm.content.trim().split(/\s+/).length : 0);
 
+        // 写作增强功能
+        const writingOutline = ref(null);
+        const writingOutlineLoading = ref(false);
+        const draftSaved = ref(false);
+        const writingTimer = reactive({ enabled: false, minutes: 30, remaining: 0, interval: null });
+        const writingSentenceCategory = ref('all');
+        const writingTopicFilter = ref('all');
+
+        // 内置题库
+        const writingTopics = [
+          { id: 1, examType: 'gaokao', category: '议论文', title: '关于坚持的思考', prompt: '请以"On Perseverance"为题，写一篇约150词的英语短文，论述坚持的重要性，并结合个人经历举例说明。' },
+          { id: 2, examType: 'gaokao', category: '议论文', title: '科技与生活', prompt: 'Some people believe that technology has made our lives easier, while others argue it has made life more complicated. What is your opinion? Write an essay of about 150 words.' },
+          { id: 3, examType: 'gaokao', category: '应用文', title: '给朋友的信', prompt: 'Write a letter to your friend telling him/her about your recent trip. Include details about where you went, what you did, and how you felt. About 120 words.' },
+          { id: 4, examType: 'gaokao', category: '记叙文', title: '一次难忘的经历', prompt: 'Describe an unforgettable experience in your life. Write about what happened, how you felt, and what you learned from it. About 150 words.' },
+          { id: 5, examType: 'gaokao', category: '议论文', title: '环境保护', prompt: 'Write an essay discussing the importance of environmental protection and what individuals can do to help. About 150 words.' },
+          { id: 6, examType: 'cet4', category: '议论文', title: '线上学习的利弊', prompt: 'Discuss the advantages and disadvantages of online learning. Give your opinion and support it with examples. About 180 words.' },
+          { id: 7, examType: 'cet4', category: '图表作文', title: '大学生阅读习惯', prompt: 'Write an essay based on the following topic: The reading habits of college students are changing. Discuss the reasons and effects. About 180 words.' },
+          { id: 8, examType: 'cet4', category: '应用文', title: '建议信', prompt: 'Write a letter of suggestion to the school library about how to improve its services. About 120 words.' },
+          { id: 9, examType: 'cet6', category: '议论文', title: '人工智能的影响', prompt: 'Some people think artificial intelligence will bring more benefits than harm, while others disagree. Discuss both views and give your opinion. About 200 words.' },
+          { id: 10, examType: 'cet6', category: '议论文', title: '成功与失败', prompt: 'Write an essay discussing the relationship between success and failure. Use examples to support your arguments. About 200 words.' },
+          { id: 11, examType: 'cet6', category: '图表作文', title: '城市化进程', prompt: 'Write an essay discussing the trend of urbanization in China, its benefits and challenges. About 200 words.' },
+          { id: 12, examType: 'gaokao', category: '议论文', title: '合作精神', prompt: 'Write an essay about the importance of teamwork/cooperation. Give examples to support your view. About 150 words.' },
+        ];
+
+        // 万能句型库
+        const writingSentences = [
+          { category: '开头', en: 'With the rapid development of ..., ... has become increasingly popular.', zh: '随着...的快速发展，...变得越来越流行。' },
+          { category: '开头', en: 'There is a growing concern over... in recent years.', zh: '近年来，人们对...越来越关注。' },
+          { category: '开头', en: 'It is widely acknowledged that...', zh: '人们普遍认为...' },
+          { category: '开头', en: 'Nowadays, it is common to see that...', zh: '如今，...已经很常见。' },
+          { category: '开头', en: 'When it comes to..., opinions vary from person to person.', zh: '一谈到...，各人看法不一。' },
+          { category: '转折', en: 'However, every coin has two sides.', zh: '然而，凡事都有两面性。' },
+          { category: '转折', en: 'On the contrary, ...', zh: '相反地，...' },
+          { category: '转折', en: 'Despite the fact that..., ...', zh: '尽管...，...' },
+          { category: '转折', en: 'While some people argue that..., others believe that...', zh: '虽然有人认为...，但其他人认为...' },
+          { category: '转折', en: 'Nevertheless, we should not ignore the fact that...', zh: '然而，我们不应忽视...这一事实。' },
+          { category: '论证', en: 'Take ... for example, ...', zh: '以...为例，...' },
+          { category: '论证', en: 'A case in point is ...', zh: '一个典型的例子是...' },
+          { category: '论证', en: 'Numerous studies have shown that...', zh: '大量研究表明...' },
+          { category: '论证', en: 'It goes without saying that...', zh: '不言而喻，...' },
+          { category: '论证', en: 'There is no denying that...', zh: '不可否认，...' },
+          { category: '结尾', en: 'In conclusion, ...', zh: '总之，...' },
+          { category: '结尾', en: 'All in all, we should bear in mind that...', zh: '总而言之，我们应记住...' },
+          { category: '结尾', en: 'Only in this way can we...', zh: '只有这样我们才能...' },
+          { category: '结尾', en: 'It is high time that we took action to...', zh: '是我们采取行动...的时候了。' },
+          { category: '结尾', en: 'From what has been discussed above, we may draw the conclusion that...', zh: '综上所述，我们可以得出结论...' },
+        ];
+        const writingSentenceCategories = computed(() => {
+          const cats = [...new Set(writingSentences.map(s => s.category))];
+          return ['all', ...cats];
+        });
+        const filteredWritingSentences = computed(() => {
+          return writingSentenceCategory.value === 'all' ? writingSentences : writingSentences.filter(s => s.category === writingSentenceCategory.value);
+        });
+        const filteredWritingTopics = computed(() => {
+          return writingTopicFilter.value === 'all' ? writingTopics : writingTopics.filter(t => t.examType === writingTopicFilter.value);
+        });
+
         // ========== 提示 ==========
         const toast = reactive({ show: false, message: '', type: 'info' });
         function showToast(message, type = 'info') {
@@ -1374,6 +1527,72 @@
           finally { loading.writing = false; }
         }
 
+        // 草稿保存
+        function saveDraft() {
+          if (writingForm.title || writingForm.content) {
+            localStorage.setItem('writingDraft', JSON.stringify({ title: writingForm.title, content: writingForm.content, savedAt: Date.now() }));
+            draftSaved.value = true;
+            setTimeout(() => draftSaved.value = false, 2000);
+          }
+        }
+        function loadDraft() {
+          const draft = localStorage.getItem('writingEraft') || localStorage.getItem('writingDraft');
+          if (draft) {
+            try {
+              const d = JSON.parse(draft);
+              if (d.content && Date.now() - (d.savedAt || 0) < 86400000) {
+                writingForm.title = d.title || '';
+                writingForm.content = d.content || '';
+                showToast('已恢复上次未完成的草稿', 'info');
+              }
+            } catch {}
+          }
+        }
+
+        // 选题
+        function selectWritingTopic(topic) {
+          writingForm.title = topic.title;
+          writingForm.content = '';
+          writingFeedback.value = null;
+          writingOutline.value = null;
+          showToast('已选择题目：' + topic.title, 'success');
+        }
+
+        // AI生成提纲
+        async function generateOutline() {
+          if (!writingForm.title) return showToast('请先选择题目或输入标题', 'error');
+          writingOutlineLoading.value = true;
+          try {
+            const data = await api('/writings/outline', { method: 'POST', body: JSON.stringify({ title: writingForm.title, content: writingForm.content }) });
+            writingOutline.value = data;
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { writingOutlineLoading.value = false; }
+        }
+
+        // 写作计时器
+        function startWritingTimer() {
+          if (writingTimer.interval) clearInterval(writingTimer.interval);
+          writingTimer.remaining = writingTimer.minutes * 60;
+          writingTimer.enabled = true;
+          writingTimer.interval = setInterval(() => {
+            writingTimer.remaining--;
+            if (writingTimer.remaining <= 0) {
+              stopWritingTimer();
+              showToast('时间到！请提交你的作文', 'error');
+            }
+          }, 1000);
+        }
+        function stopWritingTimer() {
+          if (writingTimer.interval) { clearInterval(writingTimer.interval); writingTimer.interval = null; }
+          writingTimer.enabled = false;
+        }
+        const timerDisplay = computed(() => {
+          if (!writingTimer.remaining) return '00:00';
+          const m = Math.floor(writingTimer.remaining / 60);
+          const s = writingTimer.remaining % 60;
+          return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        });
+
         async function loadWritings() {
           try {
             const list = await api('/writings');
@@ -1506,6 +1725,8 @@
 
         onMounted(() => {
           if (isLoggedIn.value) loadAllData();
+          loadDraft();
+          setInterval(() => saveDraft(), 30000);
         });
 
         return {
@@ -1519,6 +1740,9 @@
           currentExercise, exerciseAnswers, clozeAnswers, exerciseSubmitted, clozeSegments,
           examType, generateExercise, submitExercise, submitCloze,
           writingForm, writingFeedback, writingWordCount, submitWriting,
+          writingOutline, writingOutlineLoading, draftSaved, writingTimer, writingSentenceCategory, writingTopicFilter,
+          writingTopics, writingSentences, writingSentenceCategories, filteredWritingSentences, filteredWritingTopics,
+          saveDraft, loadDraft, selectWritingTopic, generateOutline, startWritingTimer, stopWritingTimer, timerDisplay,
           scoreChartCoords, scoreChartPoints, scoreChartArea,
           toast, formatDate,
           adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
