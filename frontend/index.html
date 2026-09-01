@@ -158,10 +158,9 @@
                     {{ userUsage.plan === 'pro' ? '专业版会员' : userUsage.plan === 'tester' ? '测试员' : userUsage.plan === 'admin' ? '管理员' : '免费版' }}
                     <span v-if="userUsage.planExpiresAt" class="text-xs font-normal text-slate-500 ml-2">到期: {{ formatDate(userUsage.planExpiresAt) }}</span>
                   </h4>
-                  <p class="text-sm text-slate-500" v-if="userUsage.plan === 'free'">升级专业版，解锁无限AI批改与出题</p>
+                  <p class="text-sm text-slate-500" v-if="userUsage.plan === 'free'">如需解锁全部功能，请联系管理员开通权限</p>
                 </div>
               </div>
-              <button v-if="userUsage.plan === 'free'" @click="currentTab = 'pricing'" class="px-4 py-2 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-all text-sm">💎 升级专业版</button>
             </div>
             <!-- 额度明细 -->
             <div class="grid grid-cols-3 gap-3 mt-4">
@@ -728,7 +727,7 @@
         </section>
 
         <!-- ====== 会员定价 ====== -->
-        <section v-if="currentTab === 'pricing'" class="space-y-6">
+        <section v-if="false && currentTab === 'pricing'" class="space-y-6">
           <div class="text-center py-4">
             <h2 class="text-3xl font-bold text-slate-800 mb-2">💎 选择适合你的套餐</h2>
             <p class="text-slate-500">升级专业版，解锁全部AI功能，让英语学习更高效</p>
@@ -842,31 +841,26 @@
           </div>
         </section>
 
-        <!-- ====== 升级引导弹窗 ====== -->
+        <!-- ====== 权限提示弹窗 ====== -->
         <div v-if="upgradeModal.show" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="upgradeModal.show = false">
           <div class="bg-white rounded-2xl max-w-md w-full p-6">
             <div class="text-center mb-4">
-              <span class="text-5xl">💎</span>
-              <h3 class="text-xl font-bold text-slate-800 mt-2">升级专业版</h3>
+              <span class="text-5xl">�</span>
+              <h3 class="text-xl font-bold text-slate-800 mt-2">需要权限</h3>
             </div>
             <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
               <p class="text-orange-700 text-sm">{{ upgradeModal.message }}</p>
             </div>
-            <div class="space-y-2 mb-4">
-              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>AI写作批改: 无限次使用</div>
-              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>错词本: 无限存储</div>
-              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>智能出题: 无限次生成</div>
-              <div class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span>解锁全部题库与范文库</div>
+            <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-slate-600">
+              <p class="mb-1">如需解锁此功能，请联系管理员开通权限：</p>
+              <p class="text-slate-500">📧 2733539739@qq.com</p>
             </div>
-            <div class="flex gap-3">
-              <button @click="upgradeModal.show = false" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200">稍后再说</button>
-              <button @click="upgradeModal.show = false; currentTab = 'pricing'" class="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">查看套餐</button>
-            </div>
+            <button @click="upgradeModal.show = false" class="w-full py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">我知道了</button>
           </div>
         </div>
 
-        <!-- ====== 支付二维码弹窗 ====== -->
-        <div v-if="payOrder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="payOrder = null">
+        <!-- ====== 支付二维码弹窗（暂时停用） ====== -->
+        <div v-if="false && payOrder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="payOrder = null">
           <div class="bg-white rounded-2xl max-w-md w-full p-6">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-bold text-slate-800">微信支付</h3>
@@ -1350,7 +1344,7 @@
           { id: 'writing', label: 'AI写作', icon: '✍️' },
           { id: 'history', label: '写作历史', icon: '📜' },
           { id: 'exerciseHistory', label: '练习历史', icon: '📋' },
-          { id: 'pricing', label: '会员', icon: '💎' },
+
         ];
         const tabs = computed(() => {
           const t = [...baseTabs];
@@ -1989,7 +1983,7 @@
         }
 
         function showUpgradeModal(message) {
-          upgradeModal.message = message || '当前功能已超出免费额度，升级专业版即可无限使用';
+          upgradeModal.message = message || '当前功能需要管理员开通权限';
           upgradeModal.show = true;
         }
 
