@@ -140,6 +140,21 @@ async function requireAdmin(req, res, next) {
 }
 
 // ============================================
+// 中间件：Pro功能权限检查（tester/pro/admin 可用，free 受限）
+// ============================================
+async function requireProAccess(req, res, next) {
+  try {
+    const users = await sbGet('User', `select=id,role&id=eq.${req.userId}`);
+    if (users.length === 0) return res.status(404).json({ error: '用户不存在' });
+    const role = users[0].role || 'free';
+    if (['tester', 'pro', 'admin'].includes(role)) return next();
+    return res.status(403).json({ error: '该功能需要升级权限，请联系管理员', upgradeRequired: true, currentRole: role });
+  } catch (err) {
+    res.status(500).json({ error: '权限检查失败: ' + err.message });
+  }
+}
+
+// ============================================
 // AI 调用（兼容 OpenAI 接口）
 // ============================================
 async function callAI(messages, temperature = 0.7) {
@@ -458,7 +473,7 @@ app.post('/api/exercises/dictation', authenticate, async (req, res) => {
 // ============================================
 // 4. 阅读理解 / 完型填空（AI 生成）
 // ============================================
-app.post('/api/exercises/generate', authenticate, async (req, res) => {
+app.post('/api/exercises/generate', authenticate, requireProAccess, async (req, res) => {
   try {
     const { type = 'reading', wordCount = 8, difficulty = 3, examType = 'zhongkao' } = req.body;
     const words = await sbGet('WrongWord',
@@ -558,7 +573,7 @@ app.get('/api/exercises/:id', authenticate, async (req, res) => {
 // ============================================
 // 5. 写作批改（AI）
 // ============================================
-app.post('/api/writings/grade', authenticate, async (req, res) => {
+app.post('/api/writings/grade', authenticate, requireProAccess, async (req, res) => {
   try {
     const { title, content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: '写作内容不能为空' });
@@ -612,7 +627,7 @@ ${content}
 // ============================================
 // 5.5 AI 生成写作提纲
 // ============================================
-app.post('/api/writings/outline', authenticate, async (req, res) => {
+app.post('/api/writings/outline', authenticate, requireProAccess, async (req, res) => {
   try {
     const { title, content } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: '请先选择题目或输入标题' });
@@ -872,7 +887,7 @@ app.get('/api/admin/writing-trends', authenticate, requireAdmin, async (req, res
 app.patch('/api/admin/users/:userId/role', authenticate, requireAdmin, async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'role 必须是 admin 或 user' });
+    if (!['free', 'tester', 'pro', 'admin'].includes(role)) return res.status(400).json({ error: 'role 必须是 free/tester/pro/admin' });
     const updated = await sbPatch('User', `id=eq.${req.params.userId}`, { role });
     res.json(updated);
   } catch (err) {

@@ -886,12 +886,17 @@
                       </td>
                       <td class="py-2 px-3 text-center text-slate-700">{{ u.LearningStats?.[0]?.streak ?? 0 }}天</td>
                       <td class="py-2 px-3">
-                        <span :class="u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-600'" class="px-2 py-0.5 rounded text-xs font-medium">{{ u.role === 'admin' ? '管理员' : '用户' }}</span>
+                        <span :class="{'bg-purple-50 text-purple-600': u.role === 'admin', 'bg-blue-50 text-blue-600': u.role === 'pro', 'bg-green-50 text-green-600': u.role === 'tester', 'bg-slate-100 text-slate-600': !u.role || u.role === 'free'}" class="px-2 py-0.5 rounded text-xs font-medium">{{ u.role === 'admin' ? '管理员' : u.role === 'pro' ? '付费' : u.role === 'tester' ? '测试员' : '普通' }}</span>
                       </td>
                       <td class="py-2 px-3 text-slate-400">{{ formatDate(u.createdAt) }}</td>
                       <td class="py-2 px-3 whitespace-nowrap">
                         <button @click="viewUserDetail(u)" class="text-indigo-500 hover:text-indigo-700 font-medium">查看详情</button>
-                        <button @click="toggleUserRole(u)" class="text-slate-400 hover:text-orange-500 font-medium ml-2">{{ u.role === 'admin' ? '降级' : '设管理员' }}</button>
+                        <select :value="u.role || 'free'" @change="changeUserRole(u, $event.target.value)" class="ml-2 text-xs border border-slate-200 rounded px-1 py-0.5 bg-white">
+                          <option value="free">普通</option>
+                          <option value="tester">测试员</option>
+                          <option value="pro">付费</option>
+                          <option value="admin">管理员</option>
+                        </select>
                       </td>
                     </tr>
                   </tbody>
@@ -1288,12 +1293,13 @@
           adminUserDetail.value = null;
         }
 
-        async function toggleUserRole(u) {
+        async function changeUserRole(u, newRole) {
+          if (newRole === (u.role || 'free')) return;
           try {
-            const newRole = u.role === 'admin' ? 'user' : 'admin';
             await api(`/admin/users/${u.id}/role`, { method: 'PATCH', body: JSON.stringify({ role: newRole }) });
             u.role = newRole;
-            showToast(`已设为${newRole === 'admin' ? '管理员' : '普通用户'}`, 'success');
+            const roleNames = { free: '普通用户', tester: '测试员', pro: '付费用户', admin: '管理员' };
+            showToast(`已设为${roleNames[newRole]}`, 'success');
           } catch (err) { showToast(err.message, 'error'); }
         }
 
@@ -1747,7 +1753,7 @@
           toast, formatDate,
           adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
           adminUserDetail, adminLoading, adminSubTab,
-          initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, toggleUserRole, adminDeleteWord,
+          initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, changeUserRole, adminDeleteWord,
           adminScoreChartCoords, adminScoreChartPoints, adminScoreChartArea,
           adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, replyForm,
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
