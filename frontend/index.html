@@ -124,6 +124,28 @@
 
         <!-- ====== 仪表盘 ====== -->
         <section v-if="currentTab === 'dashboard'" class="space-y-6">
+          <!-- 公告栏 -->
+          <div v-if="announcements.length > 0" class="space-y-2">
+            <div v-for="a in announcements" :key="a.id"
+              :class="a.type === 'warning' ? 'bg-orange-50 border-orange-200' : a.type === 'maintenance' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'"
+              class="rounded-2xl p-4 border flex items-start gap-3">
+              <span class="text-xl">{{ a.type === 'warning' ? '⚠️' : a.type === 'maintenance' ? '🔧' : '📢' }}</span>
+              <div class="flex-1">
+                <h4 class="font-semibold text-slate-800">{{ a.title }}</h4>
+                <p class="text-sm text-slate-600 mt-1">{{ a.content }}</p>
+                <p class="text-xs text-slate-400 mt-1">{{ formatDate(a.createdAt) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 反馈入口 -->
+          <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border border-indigo-100 flex items-center justify-between">
+            <div>
+              <h4 class="font-semibold text-slate-700">💬 意见反馈</h4>
+              <p class="text-sm text-slate-500">遇到问题或有建议？告诉我们</p>
+            </div>
+            <button @click="feedbackModal = true" class="px-4 py-2 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all">反馈</button>
+          </div>
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
               <div class="flex items-center justify-between mb-2">
@@ -539,9 +561,15 @@
 
         <!-- ====== 管理后台 ====== -->
         <section v-if="currentTab === 'admin' && user?.role === 'admin'" class="space-y-6">
+          <!-- 管理主标签 -->
+          <div class="bg-white rounded-2xl p-2 border border-slate-100 shadow-sm flex gap-2">
+            <button @click="adminMainTab = 'users'" :class="adminMainTab === 'users' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'" class="flex-1 py-2 rounded-xl font-medium transition-all">👥 用户管理</button>
+            <button @click="adminMainTab = 'feedbacks'" :class="adminMainTab === 'feedbacks' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'" class="flex-1 py-2 rounded-xl font-medium transition-all">💬 反馈管理</button>
+            <button @click="adminMainTab = 'announcements'" :class="adminMainTab === 'announcements' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'" class="flex-1 py-2 rounded-xl font-medium transition-all">📢 公告管理</button>
+          </div>
 
           <!-- 用户详情弹窗 -->
-          <div v-if="adminSelectedUser" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="closeUserDetail">
+          <div v-if="adminSelectedUser && adminMainTab === 'users'" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="closeUserDetail">
             <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
               <div class="flex items-center justify-between mb-4">
                 <div>
@@ -643,7 +671,7 @@
           </div>
 
           <!-- 管理总览 -->
-          <div v-if="!adminSelectedUser">
+          <div v-if="adminMainTab === 'users' && !adminSelectedUser">
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
               <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <div class="text-slate-500 text-sm mb-1">总用户数</div>
@@ -750,9 +778,123 @@
               </div>
             </div>
           </div>
+
+          <!-- 反馈管理 -->
+          <div v-if="adminMainTab === 'feedbacks'" class="space-y-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-slate-800">💬 用户反馈</h3>
+                <select v-model="adminFeedbackFilter" @change="loadAdminFeedbacks" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+                  <option value="all">全部</option>
+                  <option value="pending">待处理</option>
+                  <option value="resolved">已回复</option>
+                </select>
+              </div>
+              <div class="space-y-3">
+                <div v-for="f in adminFeedbacks" :key="f.id" class="border border-slate-100 rounded-xl p-4">
+                  <div class="flex items-start justify-between mb-2">
+                    <div>
+                      <span class="font-medium text-slate-800">{{ f.title }}</span>
+                      <span :class="f.category === 'bug' ? 'bg-red-50 text-red-500' : f.category === 'suggestion' ? 'bg-blue-50 text-blue-500' : 'bg-slate-50 text-slate-500'" class="text-xs px-2 py-0.5 rounded ml-2">{{ f.category === 'bug' ? 'Bug' : f.category === 'suggestion' ? '建议' : f.category === 'question' ? '问题' : '其他' }}</span>
+                      <span :class="f.status === 'resolved' ? 'bg-green-50 text-green-500' : 'bg-orange-50 text-orange-500'" class="text-xs px-2 py-0.5 rounded ml-1">{{ f.status === 'resolved' ? '已回复' : '待处理' }}</span>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ formatDate(f.createdAt) }}</span>
+                  </div>
+                  <p class="text-sm text-slate-600 mb-2">{{ f.content }}</p>
+                  <p class="text-xs text-slate-400">来自：{{ f.userName }} ({{ f.userEmail }})</p>
+                  <div v-if="f.adminReply" class="mt-2 bg-indigo-50 rounded-lg p-2 text-sm text-indigo-700">
+                    <strong>回复：</strong>{{ f.adminReply }}
+                  </div>
+                  <div v-else class="mt-3 flex gap-2">
+                    <input v-if="replyForm.id === f.id" v-model="replyForm.reply" type="text" placeholder="输入回复内容..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm">
+                    <button v-if="replyForm.id === f.id" @click="replyFeedback(f.id)" class="px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-sm font-medium">发送</button>
+                    <button v-if="replyForm.id === f.id" @click="replyForm.id = ''; replyForm.reply = ''" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-sm">取消</button>
+                    <button v-if="replyForm.id !== f.id" @click="replyForm.id = f.id" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium">回复</button>
+                  </div>
+                </div>
+                <div v-if="adminFeedbacks.length === 0" class="text-center text-slate-400 py-8">暂无反馈</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 公告管理 -->
+          <div v-if="adminMainTab === 'announcements'" class="space-y-4">
+            <!-- 发布公告 -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <h3 class="font-semibold text-slate-800 mb-4">📢 发布公告</h3>
+              <div class="space-y-3">
+                <div class="flex gap-3">
+                  <select v-model="adminAnnouncementForm.type" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white">
+                    <option value="info">📢 普通公告</option>
+                    <option value="warning">⚠️ 警告</option>
+                    <option value="maintenance">🔧 维护通知</option>
+                  </select>
+                  <input v-model="adminAnnouncementForm.title" type="text" placeholder="公告标题" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200">
+                </div>
+                <textarea v-model="adminAnnouncementForm.content" rows="3" placeholder="公告内容..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 resize-none"></textarea>
+                <button @click="createAnnouncement" class="px-6 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">发布</button>
+              </div>
+            </div>
+            <!-- 公告列表 -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <h3 class="font-semibold text-slate-800 mb-4">📋 公告列表</h3>
+              <div class="space-y-3">
+                <div v-for="a in adminAnnouncements" :key="a.id" class="border border-slate-100 rounded-xl p-4">
+                  <div class="flex items-start justify-between mb-2">
+                    <div>
+                      <span class="font-medium text-slate-800">{{ a.title }}</span>
+                      <span :class="a.type === 'warning' ? 'bg-orange-50 text-orange-500' : a.type === 'maintenance' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'" class="text-xs px-2 py-0.5 rounded ml-2">{{ a.type === 'warning' ? '警告' : a.type === 'maintenance' ? '维护' : '公告' }}</span>
+                      <span :class="a.isActive ? 'bg-green-50 text-green-500' : 'bg-slate-50 text-slate-400'" class="text-xs px-2 py-0.5 rounded ml-1">{{ a.isActive ? '活跃' : '已停用' }}</span>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ formatDate(a.createdAt) }}</span>
+                  </div>
+                  <p class="text-sm text-slate-600">{{ a.content }}</p>
+                  <button @click="toggleAnnouncement(a.id, a.isActive)" class="mt-2 text-sm font-medium" :class="a.isActive ? 'text-red-500 hover:text-red-700' : 'text-green-500 hover:text-green-700'">{{ a.isActive ? '停用' : '启用' }}</button>
+                </div>
+                <div v-if="adminAnnouncements.length === 0" class="text-center text-slate-400 py-8">暂无公告</div>
+              </div>
+            </div>
+          </div>
         </section>
 
       </main>
+
+      <!-- 反馈弹窗 -->
+      <div v-if="feedbackModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="feedbackModal = false">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">💬 意见反馈</h3>
+          <div class="space-y-3">
+            <select v-model="feedbackForm.category" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none bg-white">
+              <option value="bug">🐛 Bug报告</option>
+              <option value="suggestion">💡 功能建议</option>
+              <option value="question">❓ 使用问题</option>
+              <option value="other">📝 其他</option>
+            </select>
+            <input v-model="feedbackForm.title" type="text" placeholder="标题（简述问题）" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
+            <textarea v-model="feedbackForm.content" rows="4" placeholder="详细描述..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none resize-none"></textarea>
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button @click="feedbackModal = false" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200">取消</button>
+            <button @click="submitFeedback" class="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">提交</button>
+          </div>
+          <!-- 我的反馈历史 -->
+          <div v-if="myFeedbacks.length > 0" class="mt-5 border-t border-slate-100 pt-4">
+            <h4 class="text-sm font-semibold text-slate-700 mb-2">我的反馈历史</h4>
+            <div class="space-y-2 max-h-40 overflow-y-auto">
+              <div v-for="f in myFeedbacks" :key="f.id" class="bg-slate-50 rounded-lg p-3 text-sm">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-medium text-slate-800">{{ f.title }}</span>
+                  <span :class="f.status === 'resolved' ? 'text-green-500' : 'text-orange-500'" class="text-xs">{{ f.status === 'resolved' ? '已回复' : '待处理' }}</span>
+                </div>
+                <p class="text-slate-600 text-xs">{{ f.content }}</p>
+                <div v-if="f.adminReply" class="mt-2 bg-indigo-50 rounded p-2 text-xs text-indigo-700">
+                  <strong>管理员回复：</strong>{{ f.adminReply }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- 全局提示 -->
       <transition name="slide">
@@ -806,6 +948,12 @@
         const newWord = ref('');
         const loading = reactive({ words: false, dictation: false, exercise: false, writing: false });
 
+        // ========== 公告与反馈 ==========
+        const announcements = ref([]);
+        const feedbackModal = ref(false);
+        const feedbackForm = reactive({ title: '', content: '', category: 'suggestion' });
+        const myFeedbacks = ref([]);
+
         // ========== 听写 ==========
         const dictationConfig = reactive({ count: 10, onlyHighFrequency: false, type: 'en2zh' });
         const dictationExercise = ref(null);
@@ -851,6 +999,12 @@
         const adminUserDetail = ref(null);
         const adminLoading = reactive({ stats: false, users: false, detail: false });
         const adminSubTab = ref('overview');
+        const adminMainTab = ref('users');
+        const adminFeedbacks = ref([]);
+        const adminFeedbackFilter = ref('all');
+        const adminAnnouncements = ref([]);
+        const adminAnnouncementForm = reactive({ title: '', content: '', type: 'info' });
+        const replyForm = reactive({ id: '', reply: '' });
 
         async function loadAdminStats() {
           adminLoading.stats = true;
@@ -927,6 +1081,8 @@
         function initAdmin() {
           loadAdminStats();
           loadAdminUsers();
+          loadAdminFeedbacks();
+          loadAdminAnnouncements();
         }
 
         // ========== API 封装 ==========
@@ -1140,6 +1296,72 @@
           catch (err) { console.error(err); }
         }
 
+        // ========== 公告与反馈 ==========
+        async function loadAnnouncements() {
+          try { announcements.value = await api('/announcements'); }
+          catch (err) { console.error(err); }
+        }
+
+        async function submitFeedback() {
+          if (!feedbackForm.title.trim() || !feedbackForm.content.trim()) return;
+          try {
+            await api('/feedback', { method: 'POST', body: JSON.stringify(feedbackForm) });
+            showToast('反馈已提交，感谢你的意见！', 'success');
+            feedbackModal.value = false;
+            feedbackForm.title = '';
+            feedbackForm.content = '';
+            feedbackForm.category = 'suggestion';
+            loadMyFeedbacks();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function loadMyFeedbacks() {
+          try { myFeedbacks.value = await api('/feedback'); }
+          catch (err) { console.error(err); }
+        }
+
+        async function loadAdminFeedbacks() {
+          try {
+            const path = adminFeedbackFilter.value === 'all' ? '/admin/feedbacks' : `/admin/feedbacks?status=${adminFeedbackFilter.value}`;
+            adminFeedbacks.value = await api(path);
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function replyFeedback(id) {
+          if (!replyForm.reply.trim()) return;
+          try {
+            await api(`/admin/feedbacks/${id}`, { method: 'PATCH', body: JSON.stringify({ adminReply: replyForm.reply, status: 'resolved' }) });
+            showToast('回复成功', 'success');
+            replyForm.id = '';
+            replyForm.reply = '';
+            loadAdminFeedbacks();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function loadAdminAnnouncements() {
+          try { adminAnnouncements.value = await api('/admin/announcements'); }
+          catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function createAnnouncement() {
+          if (!adminAnnouncementForm.title.trim() || !adminAnnouncementForm.content.trim()) return;
+          try {
+            await api('/admin/announcements', { method: 'POST', body: JSON.stringify(adminAnnouncementForm) });
+            showToast('公告发布成功', 'success');
+            adminAnnouncementForm.title = '';
+            adminAnnouncementForm.content = '';
+            adminAnnouncementForm.type = 'info';
+            loadAdminAnnouncements();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function toggleAnnouncement(id, isActive) {
+          try {
+            await api(`/admin/announcements/${id}`, { method: 'PATCH', body: JSON.stringify({ isActive: !isActive }) });
+            loadAdminAnnouncements();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
         // ========== 进步曲线 ==========
         const scoreChartCoords = computed(() => {
           const writings = stats.value.recentWritings || [];
@@ -1167,7 +1389,7 @@
 
         // ========== 初始化 ==========
         async function loadAllData() {
-          await Promise.all([loadWrongWords(), loadWritings(), loadStats()]);
+          await Promise.all([loadWrongWords(), loadWritings(), loadStats(), loadAnnouncements(), loadMyFeedbacks()]);
           if (user.value?.role === 'admin') initAdmin();
         }
 
@@ -1192,6 +1414,10 @@
           adminUserDetail, adminLoading, adminSubTab,
           initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, toggleUserRole, adminDeleteWord,
           adminScoreChartCoords, adminScoreChartPoints, adminScoreChartArea,
+          adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, replyForm,
+          loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
+          announcements, feedbackModal, feedbackForm, myFeedbacks,
+          loadAnnouncements, submitFeedback, loadMyFeedbacks,
         };
       }
     }).mount('#app');

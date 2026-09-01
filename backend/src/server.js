@@ -829,6 +829,132 @@ app.patch('/api/admin/users/:userId/role', authenticate, requireAdmin, async (re
 });
 
 // ============================================
+// 6. 用户反馈
+// ============================================
+app.post('/api/feedback', authenticate, async (req, res) => {
+  try {
+    const { title, content, category = 'other' } = req.body;
+    if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: '标题和内容不能为空' });
+    const userInfo = await sbGet('User', `select=name,email&id=eq.${req.userId}`);
+    const feedback = await sbPost('Feedback', {
+      id: genId(),
+      userId: req.userId,
+      userName: userInfo[0]?.name || '',
+      userEmail: userInfo[0]?.email || '',
+      title: title.trim(),
+      content: content.trim(),
+      category,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    });
+    res.status(201).json(feedback);
+  } catch (err) {
+    res.status(500).json({ error: '提交反馈失败: ' + err.message });
+  }
+});
+
+app.get('/api/feedback', authenticate, async (req, res) => {
+  try {
+    const feedbacks = await sbGet('Feedback',
+      `select=id,title,content,category,status,"adminReply","createdAt","repliedAt"&"userId"=eq.${req.userId}&order="createdAt".desc`
+    );
+    res.json(feedbacks);
+  } catch (err) {
+    res.status(500).json({ error: '获取反馈失败: ' + err.message });
+  }
+});
+
+// ============================================
+// 7. 系统公告
+// ============================================
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const announcements = await sbGet('Announcement',
+      `select=id,title,content,type,"createdAt"&isActive=eq.true&order="createdAt".desc&limit=5`
+    );
+    res.json(announcements);
+  } catch (err) {
+    res.status(500).json({ error: '获取公告失败: ' + err.message });
+  }
+});
+
+// ============================================
+// 8. 管理后台 - 反馈管理
+// ============================================
+app.get('/api/admin/feedbacks', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let queryStr = `select=id,"userId","userName","userEmail",title,content,category,status,"adminReply","createdAt","repliedAt"&order="createdAt".desc`;
+    if (status) queryStr += `&status=eq.${status}`;
+    const feedbacks = await sbGet('Feedback', queryStr);
+    res.json(feedbacks);
+  } catch (err) {
+    res.status(500).json({ error: '获取反馈列表失败: ' + err.message });
+  }
+});
+
+app.patch('/api/admin/feedbacks/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { adminReply, status = 'resolved' } = req.body;
+    const updated = await sbPatch('Feedback', `id=eq.${req.params.id}`, {
+      adminReply,
+      status,
+      repliedAt: new Date().toISOString(),
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: '回复反馈失败: ' + err.message });
+  }
+});
+
+// ============================================
+// 9. 管理后台 - 公告管理
+// ============================================
+app.get('/api/admin/announcements', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const announcements = await sbGet('Announcement',
+      `select=id,title,content,type,isActive,"createdBy","createdAt"&order="createdAt".desc`
+    );
+    res.json(announcements);
+  } catch (err) {
+    res.status(500).json({ error: '获取公告列表失败: ' + err.message });
+  }
+});
+
+app.post('/api/admin/announcements', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { title, content, type = 'info' } = req.body;
+    if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: '标题和内容不能为空' });
+    const announcement = await sbPost('Announcement', {
+      id: genId(),
+      title: title.trim(),
+      content: content.trim(),
+      type,
+      isActive: true,
+      createdBy: req.userId,
+      createdAt: new Date().toISOString(),
+    });
+    res.status(201).json(announcement);
+  } catch (err) {
+    res.status(500).json({ error: '发布公告失败: ' + err.message });
+  }
+});
+
+app.patch('/api/admin/announcements/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const updates = {};
+    if (req.body.title !== undefined) updates.title = req.body.title;
+    if (req.body.content !== undefined) updates.content = req.body.content;
+    if (req.body.type !== undefined) updates.type = req.body.type;
+    if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
+    const updated = await sbPatch('Announcement', `id=eq.${req.params.id}`, updates);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: '更新公告失败: ' + err.message });
+  }
+});
+
+// ============================================
 // 健康检查
 // ============================================
 app.get('/', (req, res) => {
