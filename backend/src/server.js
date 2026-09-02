@@ -715,6 +715,66 @@ app.get('/api/exercises/:id', authenticate, async (req, res) => {
 });
 
 // ============================================
+// 4.5 做题记录（保存用户选择的选项和成绩）
+// ============================================
+app.post('/api/exercises/submit', authenticate, async (req, res) => {
+  try {
+    const { exerciseId, type, userAnswers, correctAnswers, score, totalQuestions, timeSpent } = req.body;
+    if (!exerciseId || !userAnswers) return res.status(400).json({ error: '缺少必要参数' });
+
+    let exerciseContent = null;
+    const exercises = await sbGet('Exercise', `select=content&id=eq.${exerciseId}`);
+    if (exercises.length > 0) {
+      exerciseContent = exercises[0].content;
+    }
+
+    const record = await sbPost('ExerciseRecord', {
+      id: genId(),
+      userId: req.userId,
+      exerciseId,
+      type: type || 'reading',
+      exerciseContent,
+      userAnswers,
+      correctAnswers: correctAnswers || null,
+      score: score || 0,
+      totalQuestions: totalQuestions || 0,
+      timeSpent: timeSpent || null,
+      createdAt: new Date().toISOString(),
+    });
+    await updateStats(req.userId);
+    res.status(201).json(record);
+  } catch (err) {
+    res.status(500).json({ error: '保存做题记录失败: ' + err.message });
+  }
+});
+
+// 用户查看自己的做题记录列表
+app.get('/api/exercises/records', authenticate, async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const records = await sbGet('ExerciseRecord',
+      `select=id,"exerciseId",type,"userAnswers","correctAnswers",score,"totalQuestions","timeSpent","createdAt"&"userId"=eq.${req.userId}&order="createdAt".desc&limit=${parseInt(limit)}`
+    );
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: '获取做题记录失败: ' + err.message });
+  }
+});
+
+// 查看做题记录详情（含题目内容）
+app.get('/api/exercises/records/:id', authenticate, async (req, res) => {
+  try {
+    const records = await sbGet('ExerciseRecord',
+      `select=id,"exerciseId",type,"exerciseContent","userAnswers","correctAnswers",score,"totalQuestions","timeSpent","createdAt"&id=eq.${req.params.id}&"userId"=eq.${req.userId}`
+    );
+    if (records.length === 0) return res.status(404).json({ error: '记录不存在' });
+    res.json(records[0]);
+  } catch (err) {
+    res.status(500).json({ error: '获取记录详情失败: ' + err.message });
+  }
+});
+
+// ============================================
 // 5. 写作批改（AI）
 // ============================================
 app.post('/api/writings/grade', authenticate, checkQuota('writing'), async (req, res) => {
@@ -979,6 +1039,32 @@ app.get('/api/admin/users/:userId/exercises', authenticate, requireAdmin, async 
     res.json(exercises);
   } catch (err) {
     res.status(500).json({ error: '获取用户练习失败: ' + err.message });
+  }
+});
+
+// 管理员查看用户的做题记录列表
+app.get('/api/admin/users/:userId/exercise-records', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    const records = await sbGet('ExerciseRecord',
+      `select=id,"exerciseId",type,"userAnswers","correctAnswers",score,"totalQuestions","timeSpent","createdAt"&"userId"=eq.${req.params.userId}&order="createdAt".desc&limit=${parseInt(limit)}`
+    );
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: '获取做题记录失败: ' + err.message });
+  }
+});
+
+// 管理员查看做题记录详情（含题目内容、用户选择、正确答案、解析）
+app.get('/api/admin/exercise-records/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const records = await sbGet('ExerciseRecord',
+      `select=id,"userId","exerciseId",type,"exerciseContent","userAnswers","correctAnswers",score,"totalQuestions","timeSpent","createdAt"&id=eq.${req.params.id}`
+    );
+    if (records.length === 0) return res.status(404).json({ error: '记录不存在' });
+    res.json(records[0]);
+  } catch (err) {
+    res.status(500).json({ error: '获取记录详情失败: ' + err.message });
   }
 });
 

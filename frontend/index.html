@@ -911,6 +911,7 @@
                 <button @click="adminSubTab = 'words'" :class="adminSubTab === 'words' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">错词 ({{ adminUserDetail?.wrongWords?.length || 0 }})</button>
                 <button @click="adminSubTab = 'writings'" :class="adminSubTab === 'writings' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">写作 ({{ adminUserDetail?.writings?.length || 0 }})</button>
                 <button @click="adminSubTab = 'exercises'" :class="adminSubTab === 'exercises' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">练习 ({{ adminUserDetail?.exercises?.length || 0 }})</button>
+                <button @click="adminSubTab = 'records'; loadAdminExerciseRecords()" :class="adminSubTab === 'records' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-slate-500'" class="px-3 py-1.5 font-medium">做题记录 ({{ adminExerciseRecords.length }})</button>
               </div>
 
               <!-- 概览 -->
@@ -1010,6 +1011,88 @@
                   <span class="text-xs text-slate-400">{{ formatDate(e.createdAt) }}</span>
                 </div>
                 <div v-if="!adminUserDetail?.exercises?.length" class="text-center text-slate-400 py-8">暂无练习</div>
+              </div>
+
+              <!-- 做题记录列表 -->
+              <div v-if="adminSubTab === 'records'" class="space-y-2">
+                <div v-for="r in adminExerciseRecords" :key="r.id" class="bg-slate-50 rounded-lg p-3 cursor-pointer hover:bg-indigo-50 transition-all" @click="viewAdminExerciseRecord(r.id)">
+                  <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">{{ r.type === 'reading' ? '📖' : '✏️' }}</span>
+                      <span class="font-medium text-slate-800">{{ r.type === 'reading' ? '阅读理解' : '完型填空' }}</span>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ formatDate(r.createdAt) }}</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-sm">
+                    <span class="font-bold" :class="r.score === r.totalQuestions ? 'text-green-500' : r.score >= r.totalQuestions / 2 ? 'text-orange-500' : 'text-red-500'">
+                      {{ r.score }} / {{ r.totalQuestions }}
+                    </span>
+                    <span class="text-slate-500">正确率 {{ r.totalQuestions ? Math.round(r.score / r.totalQuestions * 100) : 0 }}%</span>
+                    <span v-if="r.timeSpent" class="text-slate-400">⏱ {{ r.timeSpent }}秒</span>
+                    <span class="text-indigo-500 ml-auto">查看详情 →</span>
+                  </div>
+                </div>
+                <div v-if="!adminExerciseRecords.length" class="text-center text-slate-400 py-8">暂无做题记录</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 管理员-做题记录详情弹窗 -->
+          <div v-if="adminExerciseRecordDetail" class="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" @click.self="adminExerciseRecordDetail = null">
+            <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                  <span>{{ adminExerciseRecordDetail.type === 'reading' ? '📖' : '✏️' }}</span>
+                  做题记录详情 - {{ adminExerciseRecordDetail.type === 'reading' ? '阅读理解' : '完型填空' }}
+                </h3>
+                <button @click="adminExerciseRecordDetail = null" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+              </div>
+              <div class="flex items-center gap-4 mb-4 text-sm">
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg">得分: <strong>{{ adminExerciseRecordDetail.score }} / {{ adminExerciseRecordDetail.totalQuestions }}</strong></span>
+                <span class="text-slate-500">时间: {{ formatDate(adminExerciseRecordDetail.createdAt) }}</span>
+                <span v-if="adminExerciseRecordDetail.timeSpent" class="text-slate-500">用时: {{ adminExerciseRecordDetail.timeSpent }}秒</span>
+              </div>
+
+              <!-- 阅读理解详情 -->
+              <div v-if="adminExerciseRecordDetail.type === 'reading' && adminExerciseRecordDetail.exerciseContent" class="space-y-4">
+                <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-40 overflow-y-auto">{{ adminExerciseRecordDetail.exerciseContent.passage }}</div>
+                <div v-for="(q, i) in adminExerciseRecordDetail.exerciseContent.questions" :key="i" class="border border-slate-100 rounded-xl p-4">
+                  <p class="font-medium text-slate-800 mb-2">{{ i + 1 }}. {{ q.question }}</p>
+                  <div class="space-y-1 mb-2">
+                    <div v-for="(opt, oi) in q.options" :key="oi" class="flex items-center gap-2 text-sm"
+                      :class="String.fromCharCode(65 + oi) === q.answer ? 'text-green-600 bg-green-50 px-2 py-1 rounded' : String.fromCharCode(65 + oi) === adminExerciseRecordDetail.userAnswers[i] ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-slate-600 px-2 py-1'">
+                      <span>{{ String.fromCharCode(65 + oi) }}.</span>
+                      <span>{{ opt }}</span>
+                      <span v-if="String.fromCharCode(65 + oi) === q.answer" class="ml-auto">✓ 正确答案</span>
+                      <span v-if="String.fromCharCode(65 + oi) === adminExerciseRecordDetail.userAnswers[i] && String.fromCharCode(65 + oi) !== q.answer" class="ml-auto">✗ 用户选择</span>
+                      <span v-if="String.fromCharCode(65 + oi) === adminExerciseRecordDetail.userAnswers[i] && String.fromCharCode(65 + oi) === q.answer" class="ml-auto">✓ 用户选择</span>
+                    </div>
+                  </div>
+                  <div v-if="q.explanation" class="text-sm text-slate-500 bg-blue-50 p-2 rounded mt-2">
+                    <strong>解析:</strong> {{ q.explanation }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 完型填空详情 -->
+              <div v-if="adminExerciseRecordDetail.type === 'cloze' && adminExerciseRecordDetail.exerciseContent" class="space-y-4">
+                <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-40 overflow-y-auto">{{ adminExerciseRecordDetail.exerciseContent.passage }}</div>
+                <div v-for="(b, i) in adminExerciseRecordDetail.exerciseContent.blanks" :key="i" class="border border-slate-100 rounded-xl p-4">
+                  <p class="font-medium text-slate-800 mb-2">第 {{ i + 1 }} 空</p>
+                  <div class="space-y-1 mb-2">
+                    <div v-for="(opt, oi) in b.options" :key="oi" class="flex items-center gap-2 text-sm"
+                      :class="opt === b.answer ? 'text-green-600 bg-green-50 px-2 py-1 rounded' : opt === adminExerciseRecordDetail.userAnswers[i] ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-slate-600 px-2 py-1'">
+                      <span>{{ oi + 1 }}.</span>
+                      <span>{{ opt }}</span>
+                      <span v-if="opt === b.answer" class="ml-auto">✓ 正确答案</span>
+                      <span v-if="opt === adminExerciseRecordDetail.userAnswers[i] && opt !== b.answer" class="ml-auto">✗ 用户选择</span>
+                      <span v-if="opt === adminExerciseRecordDetail.userAnswers[i] && opt === b.answer" class="ml-auto">✓ 用户选择</span>
+                    </div>
+                  </div>
+                  <div v-if="b.explanation" class="text-sm text-slate-500 bg-blue-50 p-2 rounded mt-2">
+                    <strong>解析:</strong> {{ b.explanation }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1484,6 +1567,8 @@
         const adminSubTab = ref('overview');
         const adminMainTab = ref('users');
         const adminPlanForm = reactive({ plan: 'free', period: 'monthly' });
+        const adminExerciseRecords = ref([]);
+        const adminExerciseRecordDetail = ref(null);
         const adminFeedbacks = ref([]);
         const adminFeedbackFilter = ref('all');
         const adminAnnouncements = ref([]);
@@ -1522,6 +1607,8 @@
         function closeUserDetail() {
           adminSelectedUser.value = null;
           adminUserDetail.value = null;
+          adminExerciseRecords.value = [];
+          adminExerciseRecordDetail.value = null;
         }
 
         async function changeUserRole(u, newRole) {
@@ -1543,6 +1630,24 @@
             });
             adminSelectedUser.value.plan = adminPlanForm.plan;
             showToast(`套餐已更新为${adminPlanForm.plan === 'pro' ? '专业版' : '免费版'}`, 'success');
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function loadAdminExerciseRecords() {
+          if (!adminSelectedUser.value) return;
+          try {
+            const data = await api(`/admin/users/${adminSelectedUser.value.id}/exercise-records`);
+            adminExerciseRecords.value = data;
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function viewAdminExerciseRecord(id) {
+          try {
+            const data = await api(`/admin/exercise-records/${id}`);
+            if (typeof data.exerciseContent === 'string') data.exerciseContent = JSON.parse(data.exerciseContent);
+            if (typeof data.userAnswers === 'string') data.userAnswers = JSON.parse(data.userAnswers);
+            if (typeof data.correctAnswers === 'string') data.correctAnswers = JSON.parse(data.correctAnswers);
+            adminExerciseRecordDetail.value = data;
           } catch (err) { showToast(err.message, 'error'); }
         }
 
@@ -1743,24 +1848,60 @@
           finally { loading.exercise = false; }
         }
 
-        function submitExercise() {
+        async function submitExercise() {
           exerciseSubmitted.value = true;
           const questions = currentExercise.value.content.questions;
           let correct = 0;
+          const userAnswerLetters = [];
+          const correctAnswerLetters = [];
           questions.forEach((q, i) => {
-            if (String.fromCharCode(65 + exerciseAnswers[i]) === q.answer) correct++;
+            const userLetter = String.fromCharCode(65 + exerciseAnswers[i]);
+            userAnswerLetters.push(userLetter);
+            correctAnswerLetters.push(q.answer);
+            if (userLetter === q.answer) correct++;
           });
           showToast(`答对 ${correct} / ${questions.length} 题`, correct >= questions.length / 2 ? 'success' : 'error');
+          try {
+            await api('/exercises/submit', {
+              method: 'POST',
+              body: JSON.stringify({
+                exerciseId: currentExercise.value.id,
+                type: 'reading',
+                userAnswers: userAnswerLetters,
+                correctAnswers: correctAnswerLetters,
+                score: correct,
+                totalQuestions: questions.length,
+              }),
+            });
+          } catch (e) { console.error('保存做题记录失败', e); }
         }
 
-        function submitCloze() {
+        async function submitCloze() {
           exerciseSubmitted.value = true;
           const blanks = currentExercise.value.content.blanks;
           let correct = 0;
+          const userAnswerWords = [];
+          const correctAnswerWords = [];
           blanks.forEach((b, i) => {
-            if (b.options[clozeAnswers[i]] === b.answer) correct++;
+            const userWord = b.options[clozeAnswers[i]] || '';
+            userAnswerWords.push(userWord);
+            correctAnswerWords.push(b.answer);
+            if (userWord === b.answer) correct++;
           });
           showToast(`答对 ${correct} / ${blanks.length} 空`, correct >= blanks.length / 2 ? 'success' : 'error');
+          try {
+            await api('/exercises/submit', {
+              method: 'POST',
+              body: JSON.stringify({
+                exerciseId: currentExercise.value.id,
+                type: 'cloze',
+                userAnswers: userAnswerWords,
+                correctAnswers: correctAnswerWords,
+                score: correct,
+                totalQuestions: blanks.length,
+              }),
+            });
+          } catch (e) { console.error('保存做题记录失败', e); }
         }
 
         // ========== 写作 ==========
@@ -2066,6 +2207,7 @@
           adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
           adminUserDetail, adminLoading, adminSubTab,
           initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, changeUserRole, adminDeleteWord, adminUpdatePlan, adminPlanForm,
+          adminExerciseRecords, adminExerciseRecordDetail, loadAdminExerciseRecords, viewAdminExerciseRecord,
           adminScoreChartCoords, adminScoreChartPoints, adminScoreChartArea,
           adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, replyForm,
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
