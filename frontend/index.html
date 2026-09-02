@@ -1291,6 +1291,46 @@
 
       </main>
 
+      <!-- 写作题目详情弹窗 -->
+      <div v-if="writingTopicDetail" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="writingTopicDetail = null">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded" :class="writingTopicDetail.examType === 'gaokao' ? 'bg-blue-50 text-blue-500' : writingTopicDetail.examType === 'cet4' ? 'bg-green-50 text-green-500' : 'bg-purple-50 text-purple-500'">{{ writingTopicDetail.examType === 'gaokao' ? '高考' : writingTopicDetail.examType === 'cet4' ? '四级' : '六级' }}</span>
+              <span class="text-xs text-slate-400">{{ writingTopicDetail.category }}</span>
+            </div>
+            <button @click="writingTopicDetail = null" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">{{ writingTopicDetail.title }}</h3>
+
+          <!-- 完整题干 -->
+          <div class="bg-slate-50 rounded-xl p-4 mb-4">
+            <h4 class="font-semibold text-slate-700 mb-2 flex items-center gap-1"><span>📝</span> 题目要求</h4>
+            <p class="text-sm text-slate-600 leading-relaxed">{{ writingTopicDetail.prompt }}</p>
+          </div>
+
+          <!-- 写作思路 -->
+          <div v-if="writingTopicDetail.tips?.length" class="bg-indigo-50 rounded-xl p-4 mb-4">
+            <h4 class="font-semibold text-slate-700 mb-2 flex items-center gap-1"><span>💡</span> 写作思路</h4>
+            <ol class="list-decimal ml-5 space-y-1 text-sm text-slate-600">
+              <li v-for="tip in writingTopicDetail.tips" :key="tip">{{ tip }}</li>
+            </ol>
+          </div>
+
+          <!-- 优秀范文 -->
+          <div v-if="writingTopicDetail.sampleEssay" class="bg-green-50 rounded-xl p-4 mb-4">
+            <h4 class="font-semibold text-slate-700 mb-2 flex items-center gap-1"><span>⭐</span> 优秀范文</h4>
+            <pre class="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">{{ writingTopicDetail.sampleEssay }}</pre>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="flex gap-3">
+            <button @click="writingTopicDetail = null" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200">关闭</button>
+            <button @click="startWritingFromTopic" class="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">✍️ 开始写作</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 练习历史详情弹窗 -->
       <div v-if="exerciseHistoryDetail" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="exerciseHistoryDetail = null">
         <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
@@ -1492,25 +1532,52 @@
         // 写作增强功能
         const writingOutline = ref(null);
         const writingOutlineLoading = ref(false);
+        const writingTopicDetail = ref(null);
         const draftSaved = ref(false);
         const writingTimer = reactive({ enabled: false, minutes: 30, remaining: 0, interval: null });
         const writingSentenceCategory = ref('all');
         const writingTopicFilter = ref('all');
 
         // 内置题库
+        const writingTopicsGptLoaded = ref(false);
+        const writingTopicDetailLoading = ref(false);
         const writingTopics = [
-          { id: 1, examType: 'gaokao', category: '议论文', title: '关于坚持的思考', prompt: '请以"On Perseverance"为题，写一篇约150词的英语短文，论述坚持的重要性，并结合个人经历举例说明。' },
-          { id: 2, examType: 'gaokao', category: '议论文', title: '科技与生活', prompt: 'Some people believe that technology has made our lives easier, while others argue it has made life more complicated. What is your opinion? Write an essay of about 150 words.' },
-          { id: 3, examType: 'gaokao', category: '应用文', title: '给朋友的信', prompt: 'Write a letter to your friend telling him/her about your recent trip. Include details about where you went, what you did, and how you felt. About 120 words.' },
-          { id: 4, examType: 'gaokao', category: '记叙文', title: '一次难忘的经历', prompt: 'Describe an unforgettable experience in your life. Write about what happened, how you felt, and what you learned from it. About 150 words.' },
-          { id: 5, examType: 'gaokao', category: '议论文', title: '环境保护', prompt: 'Write an essay discussing the importance of environmental protection and what individuals can do to help. About 150 words.' },
-          { id: 6, examType: 'cet4', category: '议论文', title: '线上学习的利弊', prompt: 'Discuss the advantages and disadvantages of online learning. Give your opinion and support it with examples. About 180 words.' },
-          { id: 7, examType: 'cet4', category: '图表作文', title: '大学生阅读习惯', prompt: 'Write an essay based on the following topic: The reading habits of college students are changing. Discuss the reasons and effects. About 180 words.' },
-          { id: 8, examType: 'cet4', category: '应用文', title: '建议信', prompt: 'Write a letter of suggestion to the school library about how to improve its services. About 120 words.' },
-          { id: 9, examType: 'cet6', category: '议论文', title: '人工智能的影响', prompt: 'Some people think artificial intelligence will bring more benefits than harm, while others disagree. Discuss both views and give your opinion. About 200 words.' },
-          { id: 10, examType: 'cet6', category: '议论文', title: '成功与失败', prompt: 'Write an essay discussing the relationship between success and failure. Use examples to support your arguments. About 200 words.' },
-          { id: 11, examType: 'cet6', category: '图表作文', title: '城市化进程', prompt: 'Write an essay discussing the trend of urbanization in China, its benefits and challenges. About 200 words.' },
-          { id: 12, examType: 'gaokao', category: '议论文', title: '合作精神', prompt: 'Write an essay about the importance of teamwork/cooperation. Give examples to support your view. About 150 words.' },
+          { id: 1, examType: 'gaokao', category: '议论文', title: '关于坚持的思考', prompt: '请以"On Perseverance"为题，写一篇约150词的英语短文，论述坚持的重要性，并结合个人经历举例说明。',
+            tips: ['开头：点明坚持的意义——通向成功的必经之路', '主体：举例说明（如学习英语、练习某项技能），描述遇到困难时如何坚持', '结尾：总结坚持的价值，鼓励读者不要轻言放弃'],
+            sampleEssay: 'On Perseverance\n\nPerseverance is the key to success. As the saying goes, "Rome was not built in<|endoftext|> a day." No great achievement can be accomplished without persistent effort.\n\nTake my experience of learning English as an example. When I first started, I found it extremely difficult to memorize vocabulary and understand grammar. There were many times when I wanted to give up. However, I kept practicing every day, reading English articles, and listening to English podcasts. Gradually, my English improved significantly, and I could even communicate with foreigners fluently.\n\nIn conclusion, perseverance is essential in our lives. No matter how difficult the journey may be, we should never give up. Only through persistence can we achieve our goals and realize our dreams.' },
+          { id: 2, examType: 'gaokao', category: '议论文', title: '科技与生活', prompt: 'Some people believe that technology has made our lives easier, while others argue it has made life more complicated. What is your opinion? Write an essay of about 150 words.',
+            tips: ['开头：引出话题——科技对生活的双重影响', '主体段1：科技带来的便利（通讯、购物、学习）', '主体段2：科技带来的问题（依赖、社交减少）', '结尾：表明自己的观点，建议合理使用科技'],
+            sampleEssay: 'Technology: A Double-Edged Sword\n\nWith the rapid development of technology, it has become an inseparable part of our daily lives. However, opinions vary on whether technology has made our lives easier or more complicated.\n\nOn the one hand, technology has brought us tremendous convenience. We can communicate with people worldwide through smartphones, shop online without leaving home, and access vast amounts of information within seconds. These advancements have greatly improved our efficiency and quality of life.\n\nOn the other hand, technology has also created new problems. Many people have become overly dependent on their devices, leading to reduced face-to-face interactions and health issues such as poor eyesight. The constant stream of information can also cause anxiety and stress.\n\nIn my opinion, technology itself is neutral. Whether it benefits or harms us depends on how we use it. We should embrace its advantages while being mindful of its potential drawbacks, striving to maintain a healthy balance in our digital lives.' },
+          { id: 3, examType: 'gaokao', category: '应用文', title: '给朋友的信', prompt: 'Write a letter to your friend telling him/her about your recent trip. Include details about where you went, what you did, and how you felt. About 120 words.',
+            tips: ['格式：信件格式（Dear...开头，Yours sincerely结尾）', '内容1：说明去了哪里、和谁一起', '内容2：描述做了什么、看到了什么', '内容3：表达感受和心情'],
+            sampleEssay: 'Dear Tom,\n\nI hope this letter finds you well. I am writing to share with you my wonderful trip to Beijing last week.\n\nI went there with my family during the summer vacation. We visited many famous attractions, including the Great Wall, the Forbidden City, and the Summer Palace. The Great Wall was particularly impressive — climbing those steep steps was challenging but absolutely worthwhile. We also tried various local delicacies, such as Peking duck, which was delicious.\n\nI felt extremely excited and inspired throughout the trip. It was a great opportunity to learn about Chinese history and culture. I wish you could have been there with us!\n\nI look forward to hearing from you soon.\n\nYours sincerely,\nLi Hua' },
+          { id: 4, examType: 'gaokao', category: '记叙文', title: '一次难忘的经历', prompt: 'Describe an unforgettable experience in your life. Write about what happened, how you felt, and what you learned from it. About 150 words.',
+            tips: ['开头：点明"难忘"的经历是什么', '主体：按时间顺序叙述事件经过，加入感受描写', '结尾：反思从中学到了什么'],
+            sampleEssay: 'An Unforgettable Experience\n\nThe most unforgettable experience in my life was participating in a volunteer teaching program in a rural village last summer.\n\nWhen I first arrived, I was shocked by the poor conditions of the local school. The classrooms were small and poorly equipped, yet the children were eager to learn. I taught them English and helped with their homework. Although I was nervous at first, the children\'s enthusiasm encouraged me. Their eyes sparkled with curiosity whenever I introduced something new.\n\nWhat moved me most was a little girl who walked two hours every day just to attend my class. Her determination made me realize how much I had taken my own education for granted.\n\nThis experience taught me the value of education and the importance of giving back to society. It also made me more grateful for what I have. I will cherish this memory forever.' },
+          { id: 5, examType: 'gaokao', category: '议论文', title: '环境保护', prompt: 'Write an essay discussing the importance of environmental protection and what individuals can do to help. About 150 words.',
+            tips: ['开头：指出环境问题的严重性', '主体1：环境保护的重要性（健康、可持续发展）', '主体2：个人可以做的事（减少塑料、节约能源、植树）', '结尾：呼吁大家共同行动'],
+            sampleEssay: 'Protecting Our Environment\n\nEnvironmental protection has become one of the most pressing issues of our time. With rapid industrialization and urbanization, our planet is facing serious challenges such as pollution, climate change, and resource depletion.\n\nProtecting the environment is crucial for our health and the survival of future generations. Clean air, safe water, and a stable climate are basic necessities that we cannot live without. Moreover, a healthy environment supports sustainable economic development.\n\nAs individuals, there are many things we can do to help. We can reduce the use of plastic bags, recycle waste materials, save water and electricity, and choose public transportation over private cars. Planting trees is another effective way to improve the environment.\n\nIn conclusion, environmental protection is everyone\'s responsibility. If each of us takes small steps in our daily lives, together we can make a big difference. Let us act now to save our planet before it is too late.' },
+          { id: 6, examType: 'cet4', category: '议论文', title: '线上学习的利弊', prompt: 'Discuss the advantages and disadvantages of online learning. Give your opinion and support it with examples. About 180 words.',
+            tips: ['开头：引出线上学习日益普及的背景', '主体1：优势（时间灵活、资源丰富、成本低）', '主体2：劣势（缺乏互动、自律要求高、效果难保证）', '结尾：给出自己的观点和建议'],
+            sampleEssay: 'The Pros and Cons of Online Learning\n\nIn recent years, online learning has become increasingly popular, especially after the COVID-19 pandemic. While it offers many advantages, it also has some drawbacks that cannot be ignored.\n\nOn the positive side, online learning provides great flexibility. Students can study at their own pace and choose from a wide range of courses offered by top universities worldwide. It also saves time and money on commuting, making education more accessible to people in remote areas.\n\nHowever, online learning also has its disadvantages. The lack of face-to-face interaction can make students feel isolated and reduce their motivation. Furthermore, online learning requires a high level of self-discipline, which many students struggle with. Technical issues such as poor internet connections can also disrupt the learning process.\n\nIn my opinion, online learning is a valuable tool, but it should not completely replace traditional classroom education. A blended approach that combines the strengths of both methods would be the most effective solution. Students should also develop strong self-management skills to make the most of online learning opportunities.' },
+          { id: 7, examType: 'cet4', category: '图表作文', title: '大学生阅读习惯', prompt: 'Write an essay based on the following topic: The reading habits of college students are changing. Discuss the reasons and effects. About 180 words.',
+            tips: ['开头：描述现象——大学生阅读习惯正在改变', '主体1：原因（数字媒体兴起、课业压力大、碎片化阅读）', '主体2：影响（深度思考能力下降、知识面变窄）', '结尾：建议培养良好阅读习惯'],
+            sampleEssay: 'The Changing Reading Habits of College Students\n\nIn recent years, the reading habits of college students in China have undergone significant changes. More and more students are shifting from reading printed books to reading digital content on their smartphones and tablets.\n\nSeveral factors contribute to this trend. Firstly, the rapid development of digital media has made it easier to access information online. Secondly, the heavy academic burden leaves students with little time for extensive reading. Thirdly, the fast-paced lifestyle encourages fragmented reading — scrolling through short articles and social media posts rather than reading complete books.\n\nThis shift has both positive and negative effects. On the one hand, digital reading is convenient and cost-effective. On the other hand, fragmented reading may weaken students\' ability to think deeply and critically. Many students lack the patience to read long, complex texts, which affects their academic performance and cultural literacy.\n\nTo address this issue, college students should be encouraged to develop good reading habits. Universities can organize reading clubs and provide comfortable library environments to promote deep reading among students.' },
+          { id: 8, examType: 'cet4', category: '应用文', title: '建议信', prompt: 'Write a letter of suggestion to the school library about how to improve its services. About 120 words.',
+            tips: ['格式：正式建议信格式', '开头：说明写信目的', '主体：提出2-3条具体建议（延长开放时间、增加电子资源、改善环境）', '结尾：表达期望和感谢'],
+            sampleEssay: 'Dear Library Manager,\n\nI am a frequent visitor to our school library, and I am writing to offer some suggestions for improving its services.\n\nFirstly, I suggest extending the opening hours during exam periods. Many students need to study late, but the current closing time of 9 p.m. is too early. Secondly, it would be helpful to add more e-books and online databases, as digital resources are becoming increasingly important for academic research. Thirdly, the study area could be improved by providing more power outlets for laptops and creating a quiet zone for concentrated studying.\n\nI believe these improvements would greatly benefit all students and make our library a better place to study. Thank you for considering my suggestions.\n\nYours sincerely,\nLi Hua' },
+          { id: 9, examType: 'cet6', category: '议论文', title: '人工智能的影响', prompt: 'Some people think artificial intelligence will bring more benefits than harm, while others disagree. Discuss both views and give your opinion. About 200 words.',
+            tips: ['开头：引出AI发展的背景和争议', '主体1：AI的好处（效率提升、医疗诊断、自动化）', '主体2：AI的风险（就业冲击、隐私问题、伦理争议）', '结尾：表明立场，建议加强监管和适应变化'],
+            sampleEssay: 'The Impact of Artificial Intelligence\n\nArtificial intelligence (AI) has developed rapidly in recent years, sparking an ongoing debate about whether it will bring more benefits or harm to humanity. People hold divergent views on this issue.\n\nSupporters argue that AI has the potential to revolutionize various fields. In healthcare, AI can assist doctors in diagnosing diseases more accurately and efficiently. In manufacturing, AI-driven automation can significantly improve productivity and reduce costs. Moreover, AI can handle repetitive and dangerous tasks, freeing humans to focus on more creative work.\n\nHowever, critics express concerns about the negative consequences of AI. The most prominent worry is job displacement — many workers may lose their employment as machines take over their roles. Additionally, AI raises serious ethical and privacy issues, such as the misuse of personal data and the potential loss of human autonomy in decision-making.\n\nIn my opinion, AI is a powerful tool that can bring tremendous benefits if used responsibly. Rather than fearing its development, we should focus on establishing proper regulations and ethical guidelines. Meanwhile, individuals should continuously update their skills to adapt to the changing job market. Only in this way can we harness the potential of AI while minimizing its risks.' },
+          { id: 10, examType: 'cet6', category: '议论文', title: '成功与失败', prompt: 'Write an essay discussing the relationship between success and failure. Use examples to support your arguments. About 200 words.',
+            tips: ['开头：点明成功与失败的辩证关系', '主体1：失败是成功之母——从失败中吸取教训', '主体2：举例说明（爱迪生发明电灯、运动员训练）', '结尾：正确看待失败，勇于尝试'],
+            sampleEssay: 'The Relationship Between Success and Failure\n\nSuccess and failure are two sides of the same coin. While everyone desires success and dreads failure, the truth is that the two are closely interconnected, and failure often serves as a stepping stone to success.\n\nMany great achievements in history were preceded by numerous failures. Thomas Edison, for instance, failed thousands of times before successfully inventing the practical light bulb. When asked about his failures, he famously said, "I have not failed. I\'ve just found 10,000 ways that won\'t work." This attitude demonstrates how failure can provide valuable lessons that eventually lead to success.\n\nSimilarly, in sports, athletes experience countless defeats in training and competitions before reaching the podium. Each failure teaches them what needs to be improved, pushing them closer to their goals. Without the courage to face failure, success would be impossible.\n\nIn conclusion, we should not view failure as something to be avoided at all costs. Instead, we should embrace it as an essential part of the learning process. By analyzing our failures, learning from our mistakes, and maintaining our determination, we can eventually achieve the success we desire. Remember, failure is not the opposite of success — it is a part of success.' },
+          { id: 11, examType: 'cet6', category: '图表作文', title: '城市化进程', prompt: 'Write an essay discussing the trend of urbanization in China, its benefits and challenges. About 200 words.',
+            tips: ['开头：描述中国城市化加速的趋势', '主体1：好处（经济发展、基础设施完善、就业机会多）', '主体2：挑战（环境污染、交通拥堵、城乡差距）', '结尾：建议可持续城市化发展'],
+            sampleEssay: 'Urbanization in China: Benefits and Challenges\n\nOver the past few decades, China has experienced rapid urbanization, with millions of people migrating from rural areas to cities. This trend has profoundly transformed the nation\'s economic and social landscape.\n\nUrbanization has brought significant benefits. Cities have become engines of economic growth, generating abundant job opportunities and higher living standards. The concentration of resources has led to better infrastructure, including modern transportation systems, healthcare facilities, and educational institutions. Urban residents enjoy convenient access to various services and cultural activities.\n\nHowever, urbanization also poses serious challenges. Environmental problems such as air pollution, water contamination, and waste management have become increasingly severe in many cities. Traffic congestion and housing shortages affect residents\' quality of life. Furthermore, the widening gap between urban and rural areas has created social inequalities, and the loss of agricultural land threatens food security.\n\nTo achieve sustainable urbanization, the government should focus on developing green infrastructure, improving public transportation, and implementing policies to narrow the urban-rural divide. Smart city technologies can also help optimize resource allocation and reduce environmental impact. Only through balanced and sustainable development can urbanization truly benefit the entire nation.' },
+          { id: 12, examType: 'gaokao', category: '议论文', title: '合作精神', prompt: 'Write an essay about the importance of teamwork/cooperation. Give examples to support your view. About 150 words.',
+            tips: ['开头：点明合作在现代社会的重要性', '主体1：合作的优势（互补、效率高、激发创意）', '主体2：举例（体育团队、科研项目）', '结尾：呼吁培养合作精神'],
+            sampleEssay: 'The Importance of Teamwork\n\nIn today\'s highly interconnected world, teamwork has become more important than ever. No individual can accomplish great things alone, and cooperation is essential for success in almost every field.\n\nTeamwork brings together people with different skills, perspectives, and experiences, creating a synergy that no single person can achieve. When team members collaborate, they can complement each other\'s strengths and compensate for each other\'s weaknesses, leading to more creative and effective solutions. For example, in scientific research, groundbreaking discoveries are rarely made by a single scientist — they usually result from the joint efforts of international research teams.\n\nSimilarly, in sports, no star player can win a championship without the support of teammates. Football, basketball, and volleyball all demonstrate how coordinated teamwork can overcome individual talent.\n\nIn conclusion, the spirit of cooperation is indispensable in our modern society. We should learn to work well with others, respect different opinions, and contribute to our teams. Only by embracing teamwork can we achieve goals that are beyond the reach of any individual.' },
         ];
 
         // 万能句型库
@@ -1946,11 +2013,17 @@
 
         // 选题
         function selectWritingTopic(topic) {
-          writingForm.title = topic.title;
+          writingTopicDetail.value = topic;
+        }
+
+        function startWritingFromTopic() {
+          if (!writingTopicDetail.value) return;
+          writingForm.title = writingTopicDetail.value.title;
           writingForm.content = '';
           writingFeedback.value = null;
           writingOutline.value = null;
-          showToast('已选择题目：' + topic.title, 'success');
+          writingTopicDetail.value = null;
+          showToast('已选择题目：' + writingForm.title + '，开始写作吧！', 'success');
         }
 
         // AI生成提纲
@@ -2201,7 +2274,7 @@
           writingForm, writingFeedback, writingWordCount, submitWriting,
           writingOutline, writingOutlineLoading, draftSaved, writingTimer, writingSentenceCategory, writingTopicFilter,
           writingTopics, writingSentences, writingSentenceCategories, filteredWritingSentences, filteredWritingTopics,
-          saveDraft, loadDraft, selectWritingTopic, generateOutline, startWritingTimer, stopWritingTimer, timerDisplay,
+          saveDraft, loadDraft, selectWritingTopic, startWritingFromTopic, writingTopicDetail, generateOutline, startWritingTimer, stopWritingTimer, timerDisplay,
           scoreChartCoords, scoreChartPoints, scoreChartArea,
           toast, formatDate,
           adminStats, adminUsers, adminUsersTotal, adminSearch, adminSelectedUser,
