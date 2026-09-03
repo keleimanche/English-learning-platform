@@ -1265,7 +1265,7 @@
                   <input v-model="adminAnnouncementForm.title" type="text" placeholder="公告标题" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200">
                 </div>
                 <textarea v-model="adminAnnouncementForm.content" rows="3" placeholder="公告内容..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 resize-none"></textarea>
-                <button @click="createAnnouncement" class="px-6 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600">发布</button>
+                <button @click="createAnnouncement" :disabled="adminAnnouncementLoading" class="px-6 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 disabled:opacity-50">{{ adminAnnouncementLoading ? '发布中...' : '发布' }}</button>
               </div>
             </div>
             <!-- 公告列表 -->
@@ -1641,6 +1641,7 @@
         const adminFeedbackFilter = ref('all');
         const adminAnnouncements = ref([]);
         const adminAnnouncementForm = reactive({ title: '', content: '', type: 'info' });
+        const adminAnnouncementLoading = ref(false);
         const replyForm = reactive({ id: '', reply: '' });
 
         async function loadAdminStats() {
@@ -2127,7 +2128,9 @@
         }
 
         async function createAnnouncement() {
-          if (!adminAnnouncementForm.title.trim() || !adminAnnouncementForm.content.trim()) return;
+          if (!adminAnnouncementForm.title.trim()) { showToast('请输入公告标题', 'error'); return; }
+          if (!adminAnnouncementForm.content.trim()) { showToast('请输入公告内容', 'error'); return; }
+          adminAnnouncementLoading.value = true;
           try {
             await api('/admin/announcements', { method: 'POST', body: JSON.stringify(adminAnnouncementForm) });
             showToast('公告发布成功', 'success');
@@ -2136,6 +2139,7 @@
             adminAnnouncementForm.type = 'info';
             loadAdminAnnouncements();
           } catch (err) { showToast(err.message, 'error'); }
+          finally { adminAnnouncementLoading.value = false; }
         }
 
         async function toggleAnnouncement(id, isActive) {
@@ -2283,7 +2287,7 @@
           initAdmin, loadAdminUsers, viewUserDetail, closeUserDetail, changeUserRole, adminDeleteWord, adminUpdatePlan, adminPlanForm,
           adminExerciseRecords, adminExerciseRecordDetail, loadAdminExerciseRecords, viewAdminExerciseRecord,
           adminScoreChartCoords, adminScoreChartPoints, adminScoreChartArea,
-          adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, replyForm,
+          adminMainTab, adminFeedbacks, adminFeedbackFilter, adminAnnouncements, adminAnnouncementForm, adminAnnouncementLoading, replyForm,
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
           announcements, feedbackModal, feedbackForm, myFeedbacks,
           loadAnnouncements, submitFeedback, loadMyFeedbacks,
