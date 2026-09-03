@@ -2137,7 +2137,8 @@
             adminAnnouncementForm.title = '';
             adminAnnouncementForm.content = '';
             adminAnnouncementForm.type = 'info';
-            loadAdminAnnouncements();
+            await loadAdminAnnouncements();
+            await loadAnnouncements();
           } catch (err) { showToast(err.message, 'error'); }
           finally { adminAnnouncementLoading.value = false; }
         }
@@ -2145,7 +2146,8 @@
         async function toggleAnnouncement(id, isActive) {
           try {
             await api(`/admin/announcements/${id}`, { method: 'PATCH', body: JSON.stringify({ isActive: !isActive }) });
-            loadAdminAnnouncements();
+            await loadAdminAnnouncements();
+            await loadAnnouncements();
           } catch (err) { showToast(err.message, 'error'); }
         }
 
