@@ -155,10 +155,11 @@
                 <span class="text-3xl">{{ userUsage.plan === 'pro' ? '💎' : userUsage.plan === 'tester' ? '🧪' : userUsage.plan === 'admin' ? '👑' : '🆓' }}</span>
                 <div>
                   <h4 class="font-semibold text-slate-800">
-                    {{ userUsage.plan === 'pro' ? '专业版会员' : userUsage.plan === 'tester' ? '测试员' : userUsage.plan === 'admin' ? '管理员' : '免费版' }}
+                    {{ userUsage.plan === 'pro' ? '专业版会员' : userUsage.plan === 'tester' ? '🧪 内测期·测试员' : userUsage.plan === 'admin' ? '管理员' : '免费版' }}
                     <span v-if="userUsage.planExpiresAt" class="text-xs font-normal text-slate-500 ml-2">到期: {{ formatDate(userUsage.planExpiresAt) }}</span>
                   </h4>
-                  <p class="text-sm text-slate-500" v-if="userUsage.plan === 'free'">如需解锁全部功能，请联系管理员开通权限</p>
+                  <p class="text-sm text-slate-500" v-if="userUsage.plan === 'tester'">内测期间全部功能免费开放，欢迎体验并提出建议</p>
+                  <p class="text-sm text-slate-500" v-else-if="userUsage.plan === 'free'">如需解锁全部功能，请联系管理员开通权限</p>
                 </div>
               </div>
             </div>

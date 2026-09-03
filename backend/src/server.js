@@ -407,13 +407,13 @@ app.post('/api/auth/register', async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     const user = await sbPost('User', {
       id, email, password: hashedPassword, name,
-      role: 'free', plan: 'free',
+      role: 'tester', plan: 'pro',
       dailyUsage: { writing: 0, exercise: 0, lastResetDate: today },
       createdAt: now, updatedAt: now,
     });
 
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.status(201).json({ token, user: { id, email, name, role: 'free', plan: 'free' } });
+    res.status(201).json({ token, user: { id, email, name, role: 'tester', plan: 'pro' } });
   } catch (err) {
     res.status(500).json({ error: '注册失败: ' + err.message });
   }
