@@ -1877,13 +1877,14 @@
           finally { loading.dictation = false; }
         }
 
-        function submitDictationAnswer() {
-          if (!dictationAnswer.value.trim()) return;
+        async function submitDictationAnswer() {
+          if (!dictationAnswer.value.trim()) { showToast('请输入答案', 'error'); return; }
           const current = dictationWords.value[dictationIndex.value];
           const userAnswer = dictationAnswer.value.trim();
           let isCorrect;
           if (dictationConfig.type === 'en2zh') {
-            isCorrect = userAnswer === current.meaning || current.meaning.includes(userAnswer);
+            const meanings = (current.meaning || '').split(/[;；,，|]/).map(m => m.trim().toLowerCase()).filter(m => m);
+            isCorrect = userAnswer.length >= 2 && meanings.includes(userAnswer.toLowerCase());
           } else {
             isCorrect = userAnswer.toLowerCase() === current.word.toLowerCase();
           }
@@ -1895,6 +1896,21 @@
           } else {
             dictationFinished.value = true;
             showToast(`测试完成！得分 ${dictationScore.value}`, 'success');
+            try {
+              const userAnswers = dictationResults.value.map(r => r.answer);
+              const correctAnswers = dictationResults.value.map(r => dictationConfig.type === 'en2zh' ? r.meaning : r.word);
+              await api('/exercises/submit', {
+                method: 'POST',
+                body: JSON.stringify({
+                  exerciseId: dictationExercise.value.id || 'dictation',
+                  type: 'dictation',
+                  userAnswers,
+                  correctAnswers,
+                  score: dictationCorrect.value,
+                  totalQuestions: dictationWords.value.length,
+                }),
+              });
+            } catch (e) { console.error('保存听写记录失败', e); }
           }
         }
 
@@ -2195,7 +2211,7 @@
         // ========== 初始化 ==========
         async function loadUsage() {
           try {
-            const res = await fetch(`${API_BASE}/api/user/usage`, {
+            const res = await fetch(`${API_BASE}/user/usage`, {
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             });
             if (res.status === 401) { logout(); return; }
@@ -2211,7 +2227,7 @@
         async function createOrder(planId) {
           payLoading.value = true;
           try {
-            const res = await fetch(`${API_BASE}/api/pay/order`, {
+            const res = await fetch(`${API_BASE}/pay/order`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: JSON.stringify({ planId }),
@@ -2236,7 +2252,7 @@
           if (!payOrder.value) return;
           payChecking.value = true;
           try {
-            const res = await fetch(`${API_BASE}/api/pay/order/${payOrder.value.orderId}`, {
+            const res = await fetch(`${API_BASE}/pay/order/${payOrder.value.orderId}`, {
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             });
             if (res.ok) {

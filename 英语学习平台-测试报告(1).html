@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>英语学习平台 评估报告</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f5; --page:#ffffff; --surface:#f6f8fb; --surface-2:#eef1f5; --surface-3:#e4e8ef;
+  --ink:#14181f; --ink-2:#48505f; --ink-3:#7a8291; --ink-4:#a2a9b5;
+  --line:#dce1e9; --line-2:#e9ecf2; --line-strong:#c3cad6;
+  --accent:#24406b; --accent-soft:#e7ecf4; --link:#2f5fd0;
+  --crit:#bf3a2f; --crit-bg:#fae9e7; --crit-line:#eab3ad;
+  --major:#a96f14; --major-bg:#f8f0dd; --major-line:#e6cd97;
+  --minor:#59616f; --minor-bg:#eceff3; --minor-line:#cfd5de;
+  --good:#1d7a50; --good-bg:#e6f2eb; --good-line:#a9d5bf;
+  --sans:"IBM Plex Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1015; --page:#14181f; --surface:#191e27; --surface-2:#1f2530; --surface-3:#272e3a;
+    --ink:#e6e9ef; --ink-2:#a4abb8; --ink-3:#727a88; --ink-4:#565e6c;
+    --line:#2a313d; --line-2:#20262f; --line-strong:#39414f;
+    --accent:#7ea0d4; --accent-soft:#1b2536; --link:#6f9bef;
+    --crit:#e2685c; --crit-bg:#291715; --crit-line:#5a2f2a;
+    --major:#d69b4b; --major-bg:#251d10; --major-line:#4d3c1e;
+    --minor:#8b93a1; --minor-bg:#1d232c; --minor-line:#333b47;
+    --good:#4fb488; --good-bg:#122019; --good-line:#25402f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1015; --page:#14181f; --surface:#191e27; --surface-2:#1f2530; --surface-3:#272e3a;
+  --ink:#e6e9ef; --ink-2:#a4abb8; --ink-3:#727a88; --ink-4:#565e6c;
+  --line:#2a313d; --line-2:#20262f; --line-strong:#39414f;
+  --accent:#7ea0d4; --accent-soft:#1b2536; --link:#6f9bef;
+  --crit:#e2685c; --crit-bg:#291715; --crit-line:#5a2f2a;
+  --major:#d69b4b; --major-bg:#251d10; --major-line:#4d3c1e;
+  --minor:#8b93a1; --minor-bg:#1d232c; --minor-line:#333b47;
+  --good:#4fb488; --good-bg:#122019; --good-line:#25402f;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:400;
+  font-size:14.5px;line-height:1.72;-webkit-font-smoothing:antialiased;font-variant-ligatures:none}
+
+/* running header */
+.topbar{position:sticky;top:0;z-index:30;background:var(--page);border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center;padding:9px 24px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3)}
+.topbar .doc{color:var(--ink-2);font-weight:500}
+.topbar .conf{color:var(--accent);font-weight:600;letter-spacing:.1em}
+
+.page{max-width:900px;margin:0 auto;background:var(--page);border-left:1px solid var(--line);
+  border-right:1px solid var(--line);min-height:100vh}
+.pad{padding:0 clamp(20px,5vw,64px)}
+
+/* cover */
+.cover{padding:60px clamp(20px,5vw,64px) 40px;border-bottom:2px solid var(--ink)}
+.doctype{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin:0 0 20px;display:flex;align-items:center;gap:12px}
+.doctype::after{content:"";flex:1;height:1px;background:var(--line)}
+.cover h1{font-size:clamp(27px,4.4vw,38px);font-weight:700;line-height:1.1;letter-spacing:-.015em;
+  margin:0 0 7px;text-wrap:balance}
+.cover .h1sub{font-size:clamp(15px,2.1vw,19px);font-weight:400;color:var(--ink-2);letter-spacing:.01em;
+  margin:0 0 26px;padding-bottom:0}
+.cover .tagline{font-size:15px;color:var(--ink-2);font-weight:300;max-width:56ch;margin:0 0 34px}
+.covermeta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line)}
+.covermeta div{background:var(--page);padding:12px 15px}
+.covermeta dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 5px}
+.covermeta dd{margin:0;font-size:12.5px;font-weight:500;color:var(--ink);line-height:1.4;overflow-wrap:anywhere}
+
+/* section headers */
+section{padding-top:8px}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin:52px 0 4px;padding-top:16px;
+  border-top:1px solid var(--line-strong)}
+.sec-num{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);
+  letter-spacing:.05em;flex:0 0 auto;padding-top:3px}
+.sec-head h2{font-size:23px;font-weight:700;letter-spacing:-.01em;margin:0;line-height:1.2}
+.sec-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 0 auto;padding-top:6px;flex:0 0 auto;align-self:flex-start}
+.lead{color:var(--ink-2);font-size:14.5px;margin:14px 0 22px;max-width:70ch;font-weight:300}
+h3{font-size:15.5px;font-weight:600;margin:30px 0 10px;letter-spacing:-.005em}
+h4{font-size:13.5px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 13px;max-width:74ch}
+ul{margin:0 0 14px;padding-left:19px;max-width:74ch}
+li{margin-bottom:6px}
+a{color:var(--link);text-underline-offset:2px}
+strong,b{font-weight:600}
+code{font-family:var(--mono);font-size:.84em;background:var(--surface-2);padding:1px 5px;
+  border:1px solid var(--line-2);border-radius:2px;color:var(--ink);white-space:nowrap}
+pre{font-family:var(--mono);font-size:11.5px;line-height:1.7;background:var(--surface);
+  border:1px solid var(--line);border-left:2px solid var(--line-strong);padding:11px 13px;margin:0 0 12px;
+  overflow-x:auto;color:var(--ink-2);border-radius:0}
+pre b{color:var(--crit);font-weight:600}
+pre i{color:var(--good);font-style:normal;font-weight:600}
+
+/* ===== executive summary dashboard ===== */
+.exec{border:1px solid var(--line-strong);margin:26px 0 8px;background:var(--page)}
+.exec-top{display:grid;grid-template-columns:230px 1fr;gap:0}
+@media(max-width:680px){.exec-top{grid-template-columns:1fr}}
+.exec-score{padding:22px 24px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+@media(max-width:680px){.exec-score{border-right:none;border-bottom:1px solid var(--line)}}
+.exec-score .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.exec-score .num{font-size:64px;font-weight:700;line-height:.95;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--major)}
+.exec-score .num span{font-size:22px;color:var(--ink-3);font-weight:400}
+.exec-score .band{margin-top:10px;font-size:12.5px;color:var(--ink-2)}
+.exec-score .gauge{height:6px;background:var(--surface-3);margin-top:12px;position:relative;overflow:hidden}
+.exec-score .gauge i{position:absolute;left:0;top:0;bottom:0;background:var(--major);width:68%}
+.exec-dims{padding:18px 24px;display:flex;flex-direction:column;gap:8px;justify-content:center}
+.dimbar{display:grid;grid-template-columns:76px 1fr 34px;align-items:center;gap:11px;font-size:12.5px}
+.dimbar .dn{color:var(--ink-2);font-weight:500}
+.dimbar .track{height:8px;background:var(--surface-3);position:relative;overflow:hidden}
+.dimbar .track i{position:absolute;left:0;top:0;bottom:0}
+.dimbar .dv{font-family:var(--mono);font-weight:600;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+.fill-hi{background:var(--good)} .fill-mid{background:var(--major)} .fill-lo{background:var(--crit)}
+.v-hi{color:var(--good)} .v-mid{color:var(--major)} .v-lo{color:var(--crit)}
+.exec-bottom{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+.tally{background:var(--page);padding:14px 20px;display:flex;align-items:baseline;gap:10px}
+.tally .tn{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.tally .tl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.tally.c .tn{color:var(--crit)} .tally.m .tn{color:var(--major)} .tally.n .tn{color:var(--minor)}
+.exec-verdict{padding:18px 24px;border-top:1px solid var(--line)}
+.exec-verdict p{margin:0 0 10px;font-size:13.5px}
+.exec-verdict p:last-child{margin-bottom:0}
+.exec-verdict .k{font-weight:600;color:var(--ink)}
+
+/* diagrams */
+.figure{border:1px solid var(--line);background:var(--surface);padding:20px;margin:6px 0 12px;overflow-x:auto}
+.figcap{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-3);margin:0 0 16px;text-transform:uppercase}
+.figcap b{color:var(--accent);font-weight:600}
+.after{font-size:12.5px;color:var(--ink-3);max-width:74ch;margin-top:4px}
+
+/* mahjong alignment */
+.mj{min-width:600px}
+.mj-row{display:grid;grid-template-columns:90px 1fr;border-top:1px solid var(--line);align-items:stretch}
+.mj-row:last-child{border-bottom:1px solid var(--line)}
+.mj-suit{background:var(--surface-3);border-right:1px solid var(--line);padding:11px 10px;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.mj-suit b{font-size:16px;font-weight:700;line-height:1}
+.mj-suit span{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+.mj-tiles{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
+.tile{border:1px solid var(--line-strong);border-top:3px solid var(--ink-3);background:var(--page);
+  padding:6px 10px 7px;min-width:116px;flex:0 0 auto}
+.tile .tn{font-size:12px;font-weight:500;color:var(--ink);line-height:1.3;display:block}
+.tile .ts{font-family:var(--mono);font-size:8px;letter-spacing:.04em;text-transform:uppercase;margin-top:3px;display:block}
+.tile.have{border-top-color:var(--good)} .tile.have .ts{color:var(--good)}
+.tile.warn{border-top-color:var(--major);background:var(--major-bg)} .tile.warn .ts{color:var(--major)}
+.tile.bad{border-top-color:var(--crit);background:var(--crit-bg)} .tile.bad .tn{color:var(--crit)} .tile.bad .ts{color:var(--crit)}
+.tile.miss{border-style:dashed;border-top-style:solid;border-top-color:var(--line-strong);
+  background:repeating-linear-gradient(135deg,transparent,transparent 5px,var(--surface-2) 5px,var(--surface-2) 6px)}
+.tile.miss .tn{color:var(--ink-3);font-weight:400} .tile.miss .ts{color:var(--ink-3)}
+.tile.miss.key{border-top-color:var(--crit)}
+.tile.miss.key .tn{color:var(--ink)}
+.tile.miss.key .ts{color:var(--crit);font-weight:600}
+.lg-key{border-style:dashed!important;border-top:3px solid var(--crit)!important;background:repeating-linear-gradient(135deg,transparent,transparent 3px,var(--surface-2) 3px,var(--surface-2) 4px)}
+.mj-legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:13px;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.mj-legend b{display:inline-block;width:18px;height:10px;vertical-align:middle;margin-right:6px;border:1px solid var(--line-strong)}
+.lg-have{border-top:3px solid var(--good)!important}
+.lg-warn{border-top:3px solid var(--major)!important;background:var(--major-bg)}
+.lg-bad{border-top:3px solid var(--crit)!important;background:var(--crit-bg)}
+.lg-miss{border-style:dashed!important;background:repeating-linear-gradient(135deg,transparent,transparent 3px,var(--surface-2) 3px,var(--surface-2) 4px)}
+
+/* layered arch */
+.arch{display:flex;flex-direction:column;min-width:560px}
+.layer{display:grid;grid-template-columns:118px 1fr;border:1px solid var(--line);border-bottom:none}
+.arch .layer:last-child{border-bottom:1px solid var(--line)}
+.layer-name{background:var(--surface-3);padding:13px 12px;font-weight:600;font-size:12.5px;display:flex;flex-direction:column;justify-content:center;gap:2px;border-right:1px solid var(--line)}
+.layer-name span{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-weight:400}
+.layer-body{padding:11px 13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.node{font-size:11.5px;padding:4px 9px;background:var(--page);border:1px solid var(--line-strong);color:var(--ink-2)}
+.node b{color:var(--ink);font-weight:600} .node.ext{border-style:dashed}
+.node.bad{background:var(--crit-bg);color:var(--crit);border-color:var(--crit-line)}
+.arrow{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11px;padding:3px 0}
+
+/* deployment flow */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;min-width:560px}
+.fbox{flex:1;min-width:128px;border:1px solid var(--line-strong);background:var(--page);padding:12px 13px;display:flex;flex-direction:column;gap:5px}
+.fbox h5{margin:0;font-size:12.5px;font-weight:600}
+.fbox .fsub{font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.04em}
+.fbox p{margin:0;font-size:11px;color:var(--ink-3);line-height:1.45;max-width:none}
+.farrow{display:flex;align-items:center;justify-content:center;padding:0 8px;color:var(--ink-4);font-family:var(--mono);flex:0 0 auto}
+@media(max-width:640px){.farrow{transform:rotate(90deg);padding:5px 0;width:100%}}
+.fnote{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin:12px 0 0;line-height:1.7}
+.fnote b{color:var(--major)}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0 14px}
+.tbl th{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--line-strong);background:var(--surface)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2)}
+.tbl td b{color:var(--ink)}
+.tbl tr:hover td{background:var(--surface)}
+.tbl .id{font-family:var(--mono);font-weight:600;color:var(--ink);white-space:nowrap;font-size:11.5px}
+.tbl .num{font-variant-numeric:tabular-nums;text-align:right;font-family:var(--mono)}
+.sev{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;
+  padding:2px 7px;white-space:nowrap;text-transform:uppercase}
+.sev.c{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-line)}
+.sev.m{background:var(--major-bg);color:var(--major);border:1px solid var(--major-line)}
+.sev.n{background:var(--minor-bg);color:var(--minor);border:1px solid var(--minor-line)}
+.sev.g{background:var(--good-bg);color:var(--good);border:1px solid var(--good-line)}
+.wrap-tbl{overflow-x:auto}
+
+/* finding cards */
+.find{border:1px solid var(--line);border-left:3px solid var(--ink-3);margin:0 0 16px;background:var(--page)}
+.find.c{border-left-color:var(--crit)} .find.m{border-left-color:var(--major)} .find.n{border-left-color:var(--minor)}
+.find-h{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line-2);background:var(--surface)}
+.find-h .fid{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink)}
+.find-h .fmod{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.04em;margin-left:auto;text-transform:uppercase}
+.find-t{font-weight:600;font-size:14.5px;padding:13px 15px 4px;line-height:1.4}
+.find-b{padding:0 15px 14px}
+.fld{display:grid;grid-template-columns:58px 1fr;gap:12px;padding:8px 0;border-top:1px solid var(--line-2)}
+.fld:first-child{border-top:none}
+.fld .fk{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.fld .fv{font-size:13px;color:var(--ink-2);line-height:1.6}
+.fld .fv b{color:var(--ink)}
+.fld.fix .fk{color:var(--good)}
+.fld pre{margin:0}
+
+/* strengths list */
+.wins{border:1px solid var(--line)}
+.win{display:grid;grid-template-columns:24px 1fr;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-2)}
+.win:last-child{border-bottom:none}
+.win .tick{color:var(--good);font-family:var(--mono);font-weight:600;font-size:14px;line-height:1.5}
+.win h4{margin:0 0 4px} .win p{margin:0;font-size:13px;color:var(--ink-2);font-weight:300;max-width:70ch}
+
+/* callouts */
+.box{border:1px solid var(--line);padding:15px 17px;margin:0 0 16px;font-size:13px;color:var(--ink-2);background:var(--surface)}
+.box.crit{border-left:3px solid var(--crit);background:var(--crit-bg)}
+.box.good{border-left:3px solid var(--good);background:var(--good-bg)}
+.box.accent{border-left:3px solid var(--accent);background:var(--accent-soft)}
+.box p{margin:0 0 9px} .box p:last-child{margin-bottom:0} .box b{color:var(--ink)}
+
+/* evidence rows */
+.rows{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+.row .rv{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:11.5px;white-space:nowrap}
+
+footer{margin-top:40px;padding:22px clamp(20px,5vw,64px) 60px;border-top:2px solid var(--ink);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-3);line-height:1.9}
+footer b{color:var(--ink-2);font-weight:500}
+::selection{background:var(--accent);color:#fff}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+<style>img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="doc">英语学习平台 · 产品评估报告</span>
+  <span class="conf">评估报告 · 供作者参考</span>
+</div>
+
+<div class="page">
+
+<div class="cover">
+  <p class="doctype">产品评估报告 · Product Assessment</p>
+  <h1>英语学习平台</h1>
+  <p class="h1sub">功能验证与产品评估</p>
+  <p class="tagline">对一个学生独立开发的 AI 英语学习 Web 应用做全链路验证：真实浏览器走查、源码通读、后端接口实测，给出评分、问题登记与修复路线。</p>
+  <dl class="covermeta">
+    <div><dt>被测系统</dt><dd>englishlearning33.netlify.app</dd></div>
+    <div><dt>评估日期</dt><dd>2026-09-03</dd></div>
+    <div><dt>评估方式</dt><dd>黑盒走查 + 源码审计 + API 实测</dd></div>
+    <div><dt>覆盖范围</dt><dd>7 个功能页 · 2302 行源码 · 前后端</dd></div>
+    <div><dt>综合评级</dt><dd>68 / 100 · 中等（演示版）</dd></div>
+    <div><dt>问题总数</dt><dd>21 项（严重 6 · 主要 10 · 次要 5）</dd></div>
+  </dl>
+</div>
+
+<div class="pad">
+
+<!-- ================= EXEC SUMMARY ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">—</span><h2>执行摘要</h2><span class="sec-kicker">Executive Summary</span></div>
+  <div class="exec">
+    <div class="exec-top">
+      <div class="exec-score">
+        <div class="lbl">综合评分</div>
+        <div class="num">68<span>/100</span></div>
+        <div class="band">中等 · 链路已跑通，验证与产品化待补</div>
+        <div class="gauge"><i></i></div>
+      </div>
+      <div class="exec-dims">
+        <div class="dimbar"><span class="dn">商业价值</span><span class="track"><i class="fill-lo" style="width:55%"></i></span><span class="dv v-lo">55</span></div>
+        <div class="dimbar"><span class="dn">切入角度</span><span class="track"><i class="fill-mid" style="width:78%"></i></span><span class="dv v-mid">78</span></div>
+        <div class="dimbar"><span class="dn">功能完成度</span><span class="track"><i class="fill-mid" style="width:75%"></i></span><span class="dv v-mid">75</span></div>
+        <div class="dimbar"><span class="dn">完整性</span><span class="track"><i class="fill-lo" style="width:38%"></i></span><span class="dv v-lo">38</span></div>
+        <div class="dimbar"><span class="dn">可用性</span><span class="track"><i class="fill-mid" style="width:68%"></i></span><span class="dv v-mid">68</span></div>
+        <div class="dimbar"><span class="dn">健壮性</span><span class="track"><i class="fill-mid" style="width:62%"></i></span><span class="dv v-mid">62</span></div>
+        <div class="dimbar"><span class="dn">安全性</span><span class="track"><i class="fill-mid" style="width:66%"></i></span><span class="dv v-mid">66</span></div>
+      </div>
+    </div>
+    <div class="exec-bottom">
+      <div class="tally c"><span class="tn">6</span><span class="tl">严重<br>Critical</span></div>
+      <div class="tally m"><span class="tn">10</span><span class="tl">主要<br>Major</span></div>
+      <div class="tally n"><span class="tn">5</span><span class="tl">次要<br>Minor</span></div>
+    </div>
+    <div class="exec-verdict">
+      <p><span class="k">总体判断：</span>功能做得很全：前后端分离、接了大模型、有权限和额度、有管理后台，而且已经部署上线能用。一个人把这一整套跑通，不容易。不过现在 AI 补功能细节很快，做了多少功能已经不是评价的重点。我更看重那几件 AI 帮不上忙的事：<span class="k">想出"用错词来出题"这个点子、把题库和句型整理好、把各个模块接到一起。</span>问题也出在同一个地方：<span class="k">模块之间的接缝没人验证过</span>（有整页是空的，听写打分能绕过去）；更根本的是<span class="k">宣称的闭环没有闭上</span>：错词只能用户手动输入，批改发现的错误不写回，代码里一条"回流"的边都没有（见 §01 图 4）；也还没验证过到底有没有人会用（渠道、留存都缺，见 §07、§08）。</p>
+      <p><span class="k">立即行动（前三项约 1–2 小时）：</span>① 删除接口 URL 重复的 <code>/api</code>（换回额度 UI 与全部付费接口）；② 建 <code>ExerciseRecord</code> 表并把静默 <code>catch</code> 改为提示（练习历史复活）；③ 后端加 AI 输入长度上限（堵住烧钱口）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 01 产品与业务架构 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>产品与业务架构</h2><span class="sec-kicker">Product Scope</span></div>
+  <p class="lead">一个面向英语学习者的 Web 应用。核心叙事是把用户记错的单词沉淀成私有数据，再用 AI 围绕这些错词生成练习、批改作文，宣称形成"错词 → 出题 → 写作 → 批改 → 回流"的学习闭环（实际数据流见下面图 4，这个闭环在代码里并没有闭上）。围绕主线还实现了额度体系、付费套餐、反馈、公告与完整管理后台。</p>
+
+  <div class="figure">
+    <p class="figcap"><b>图 1</b> · 业务架构 · 功能对齐矩阵：每格一个功能，对照主流英语学习 App（扇贝 / 有道 / 批改网）标配</p>
+    <div class="mj">
+      <div class="mj-row"><div class="mj-suit"><b>词</b><span>Vocab</span></div><div class="mj-tiles">
+        <div class="tile warn"><span class="tn">错词本</span><span class="ts">仅手动录入</span></div>
+        <div class="tile have"><span class="tn">自动查义 + 音标</span><span class="ts">有</span></div>
+        <div class="tile miss key"><span class="tn">错词自动入库（测出来）</span><span class="ts">闭环起点·缺</span></div>
+        <div class="tile miss key"><span class="tn">批改错误回流错词本</span><span class="ts">闭环回路·缺</span></div>
+        <div class="tile miss key"><span class="tn">掌握后移出错词本</span><span class="ts">无此概念</span></div>
+        <div class="tile miss"><span class="tn">背单词·记忆算法</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">例句 / 词根词缀</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>听</b><span>Listen</span></div><div class="mj-tiles">
+        <div class="tile warn"><span class="tn">听写测试</span><span class="ts">无声/判分错</span></div>
+        <div class="tile have"><span class="tn">单词朗读</span><span class="ts">有</span></div>
+        <div class="tile miss"><span class="tn">精听 / 泛听</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">听力素材库</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>说</b><span>Speak</span></div><div class="mj-tiles">
+        <div class="tile miss"><span class="tn">AI 口语对话</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">发音评测 / 跟读打分</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">语音识别</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>读</b><span>Read</span></div><div class="mj-tiles">
+        <div class="tile have"><span class="tn">AI 阅读理解</span><span class="ts">有</span></div>
+        <div class="tile have"><span class="tn">完型填空</span><span class="ts">有</span></div>
+        <div class="tile miss"><span class="tn">分级阅读素材库</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">生词即点即查</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>写</b><span>Write</span></div><div class="mj-tiles">
+        <div class="tile have"><span class="tn">AI 作文批改·维度+逐句</span><span class="ts">有·亮点</span></div>
+        <div class="tile have"><span class="tn">AI 写作提纲</span><span class="ts">有</span></div>
+        <div class="tile have"><span class="tn">内置分级题库 12</span><span class="ts">有</span></div>
+        <div class="tile have"><span class="tn">万能句型库 20</span><span class="ts">有</span></div>
+        <div class="tile miss"><span class="tn">范文库</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>测评</b><span>Assess</span></div><div class="mj-tiles">
+        <div class="tile have"><span class="tn">智能出题</span><span class="ts">有</span></div>
+        <div class="tile miss key"><span class="tn">答错的词回流错词本</span><span class="ts">闭环回路·缺</span></div>
+        <div class="tile have"><span class="tn">仪表盘统计</span><span class="ts">有</span></div>
+        <div class="tile warn"><span class="tn">写作进步曲线</span><span class="ts">单篇空白</span></div>
+        <div class="tile bad"><span class="tn">练习历史</span><span class="ts">表缺失</span></div>
+        <div class="tile miss"><span class="tn">真题 / 模拟考</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">学情分析报告</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>激励</b><span>Engage</span></div><div class="mj-tiles">
+        <div class="tile have"><span class="tn">连续打卡 streak</span><span class="ts">有</span></div>
+        <div class="tile miss"><span class="tn">学习计划 / 目标</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">排行榜 / PK</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">成就 / 勋章</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">成绩分享</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">社区 / 班级</span><span class="ts">标配·未做</span></div>
+      </div></div>
+      <div class="mj-row"><div class="mj-suit"><b>账号</b><span>Account</span></div><div class="mj-tiles">
+        <div class="tile have"><span class="tn">注册 / 登录 JWT</span><span class="ts">有</span></div>
+        <div class="tile have"><span class="tn">意见反馈 + 公告</span><span class="ts">有</span></div>
+        <div class="tile have"><span class="tn">管理后台</span><span class="ts">有</span></div>
+        <div class="tile warn"><span class="tn">额度体系</span><span class="ts">不显示</span></div>
+        <div class="tile bad"><span class="tn">定价页 / 自助支付</span><span class="ts">被关闭</span></div>
+        <div class="tile miss"><span class="tn">手机 / 微信登录</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">找回 / 改密码</span><span class="ts">标配·未做</span></div>
+        <div class="tile miss"><span class="tn">ICP备案 / 协议</span><span class="ts">合规·未做</span></div>
+      </div></div>
+    </div>
+    <div class="mj-legend">
+      <span><b class="lg-have"></b>有且可用</span><span><b class="lg-warn"></b>残缺</span>
+      <span><b class="lg-bad"></b>坏 / 被关</span><span><b class="lg-miss"></b>行业标配 · 未做</span>
+      <span><b class="lg-key"></b>闭环缺口（口号里有，代码里没有）</span>
+    </div>
+  </div>
+  <p class="after"><b>先看红色虚线的四格。</b>它们是这个产品自己口号里承诺、但代码里没有的东西：错词没有自动入库的入口、批改和出题发现的错误不回流、错词也没有"掌握后移出"的概念。错词本因此只是一个手动维护的词表，所以降为"残缺"。这四格是全图最要紧的部分，下面的"产品逻辑"会展开。<br><b>再看灰色虚线。</b>"说"这一行完全没有，而口语对话和发音评测正是现在 AI 英语产品竞争最激烈的地方；"词"缺背单词的记忆算法（遗忘曲线、间隔重复这类）；"激励"几乎是零，没有排行、分享、社区。做得最扎实的是"写"这一行，比大多数同类产品都密。</p>
+
+  <h3>产品逻辑：宣称的闭环，和代码里实际的数据流</h3>
+  <p>口号和首页讲的是一个闭环：错词 → 出题 → 写作 → 批改 → 回流。我按代码把每个模块的输入和输出理了一遍，画出来是下面这样。</p>
+  <div class="figure">
+    <p class="figcap"><b>图 4</b> · 上：宣称的闭环 · 下：代码里实际的两条线</p>
+    <div class="flow" style="margin-bottom:6px">
+      <div class="fbox"><h5>错词</h5><div class="fsub">宣称</div></div><div class="farrow">→</div>
+      <div class="fbox"><h5>出题</h5></div><div class="farrow">→</div>
+      <div class="fbox"><h5>写作</h5></div><div class="farrow">→</div>
+      <div class="fbox"><h5>批改</h5></div><div class="farrow">→</div>
+      <div class="fbox"><h5>回流到错词</h5></div>
+    </div>
+    <p class="fnote" style="margin:4px 0 14px">实际：</p>
+    <div class="flow">
+      <div class="fbox"><h5>用户手动打字</h5><div class="fsub">唯一来源</div><p>没有任何环节替用户产生错词</p></div><div class="farrow">→</div>
+      <div class="fbox"><h5>错词本</h5><div class="fsub">根</div><p>查义、计频；只增不减，没有"掌握"</p></div><div class="farrow">→</div>
+      <div class="fbox"><h5>出题 / 听写</h5><div class="fsub">只读消费</div><p>答错不写回；听写不落库；出题记录表缺失</p></div>
+    </div>
+    <div class="flow" style="margin-top:10px">
+      <div class="fbox"><h5>自由写作</h5><div class="fsub">独立入口</div><p>不读取错词本</p></div><div class="farrow">→</div>
+      <div class="fbox"><h5>AI 批改</h5><div class="fsub">唯一真正发现错误的地方</div><p>逐句找出错词、错用</p></div><div class="farrow">→</div>
+      <div class="fbox"><h5>写作历史 / 统计</h5><div class="fsub">终点</div><p>不写回错词本</p></div>
+    </div>
+    <p class="fnote"><b>缺失的边：</b>批改 → 错词本（无）· 出题答错 → 错词本（无）· 听写答错 → 错词本（无）· 错词本 → 写作（无）· 掌握后移出错词本（没有这个概念）</p>
+  </div>
+  <p>看图就清楚了：<b>代码里没有一条"回流"的边。</b>错词本的唯一来源是用户手打；出题和听写只从它读，答错了不写回去；批改是整个系统里唯一真正能发现用户错误的地方，可它的结果只进写作历史，不进错词本，而且写作也不从错词本取词。所谓闭环，其实是两条互不相连的直线："手打错词 → 出题/听写 → 记录（还坏了）"，和"自由写作 → 批改 → 历史"。</p>
+  <p>还少一个概念：<b>没有"掌握"。</b>错词本只增不减，一个词进来就永远在里面，答对多少次都不会移出。百词斩、扇贝的错词本是"测出来的，复习到会了就走"；这里是"自己填进去的，永远留着"。严格说它现在不是错词本，是一个用户手动维护的词表。这也是 §07 里"没人会用"最根本的原因：不是录入麻烦，是系统没有替用户产生错词的环节，起点是空的。</p>
+</section>
+
+<!-- ================= 02 技术架构 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>技术架构</h2><span class="sec-kicker">Architecture</span></div>
+  <p class="lead">全部来自实测（HTTP 响应头、网络面板、通读源码）。零构建的 Vue 单文件 SPA + Express/Supabase 后端 + 外部大模型，前后端完全分离、跨域调用。</p>
+
+  <div class="figure">
+    <p class="figcap"><b>图 2</b> · 技术架构分层（虚线框 = 外部第三方服务）</p>
+    <div class="arch">
+      <div class="layer"><div class="layer-name">客户端<span>Browser</span></div><div class="layer-body">
+        <span class="node"><b>Vue 3.5.42</b> SPA · 单文件 2302 行</span>
+        <span class="node"><code>currentTab</code> 切页（无路由库）</span>
+        <span class="node">Tailwind CDN</span>
+        <span class="node">Web Speech 朗读</span>
+        <span class="node">localStorage：token / 草稿</span>
+      </div></div>
+      <div class="arrow">▼ &nbsp; REST over HTTPS · Bearer JWT</div>
+      <div class="layer"><div class="layer-name">API 层<span>Express / Render</span></div><div class="layer-body">
+        <span class="node"><b>Express</b> · REST <code>/api/*</code></span>
+        <span class="node">JWT 鉴权中间件（HS256）</span>
+        <span class="node">额度中间件</span>
+        <span class="node">admin 权限校验</span>
+      </div></div>
+      <div class="arrow">▼ &nbsp; 数据读写 &nbsp;|&nbsp; ▼ AI 调用（服务端到服务端）</div>
+      <div class="layer"><div class="layer-name">数据层<span>Supabase</span></div><div class="layer-body">
+        <span class="node"><b>PostgREST</b> / Postgres</span>
+        <span class="node">User · WrongWord · Writing</span>
+        <span class="node">Exercise · Feedback · Announcement</span>
+        <span class="node bad">ExerciseRecord（表缺失）</span>
+      </div></div>
+      <div class="layer"><div class="layer-name">外部服务<span>3rd party</span></div><div class="layer-body">
+        <span class="node ext">大模型：批改/出题/提纲 · <b>厂商未知</b></span>
+        <span class="node ext">词典 API：音标 + 释义</span>
+        <span class="node ext">api.qrserver.com：支付二维码</span>
+      </div></div>
+    </div>
+  </div>
+  <p class="after">大模型是后端在服务器上调的，API key 和用的哪家都在 Render 的进程里，浏览器这边看不到。所以从外面测不出来用的是哪家模型。</p>
+
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th>层</th><th>技术</th><th>关键事实</th></tr></thead>
+    <tbody>
+      <tr><td><b>前端</b></td><td>Vue 3.5.42 global prod</td><td>单文件 <code>index.html</code>，158 KB / 2302 行，无构建；Tailwind CDN 3.4.17；无状态库</td></tr>
+      <tr><td><b>后端</b></td><td>Express on Render</td><td><code>x-powered-by: Express</code>，Cloudflare 在前；健康检查 <code>/api/health</code> → 200</td></tr>
+      <tr><td><b>数据</b></td><td>Supabase / PostgREST</td><td>由 <code>PGRST205</code> 错误码暴露；REST 直连</td></tr>
+      <tr><td><b>鉴权</b></td><td>JWT HS256</td><td>7 天有效期，payload 仅 <code>userId</code>，role 服务端查询</td></tr>
+      <tr><td><b>依赖</b></td><td>unpkg / cdn.tailwindcss</td><td><b>未锁版本、无 SRI</b>；Tailwind 官方警告勿用于生产</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>部署架构与请求链路</h3>
+  <div class="figure">
+    <p class="figcap"><b>图 3</b> · 前端 Netlify、后端 Render，浏览器跨域打通</p>
+    <div class="flow">
+      <div class="fbox"><h5>浏览器</h5><div class="fsub">Client SPA</div><p>加载页面、运行 Vue、持有 JWT</p></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><h5>Netlify Edge CDN</h5><div class="fsub">静态托管</div><p>发 index.html + 字体<br>HSTS preload 已开</p></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><h5>Cloudflare → Render</h5><div class="fsub">Express API</div><p>跨域 REST 调用<br>CORS 全开 <code>*</code></p></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><h5>Supabase + 大模型</h5><div class="fsub">数据 + AI</div><p>Postgres 落库<br>服务端调 AI 厂商</p></div>
+    </div>
+    <p class="fnote">旁路依赖（浏览器直连）：unpkg → Vue · cdn.tailwindcss · Google Fonts · api.qrserver.com<br>
+    <b>风险点：</b>前端跑在国外 netlify.app（未备案）；CDN 依赖未锁版本、无 SRI；后端 CORS <code>Access-Control-Allow-Origin: *</code></p>
+  </div>
+
+  <div class="box accent"><p><b>架构评价：</b>一个 index.html 写 2302 行，作为个人项目可以理解：不用构建，改完直接推，Netlify 秒上线。但已经到头了。登录、七个业务模块、整个管理后台都在一个文件里，后面那些接缝上的问题能藏这么久，这是直接原因。下一步该拆成 Vite 加单文件组件，不是为了好看，是为了让问题藏不住。</p></div>
+</section>
+
+<!-- ================= 03 评判方法与标准 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>评判方法与标准</h2><span class="sec-kicker">Methodology</span></div>
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th style="width:110px">维度</th><th>评估要点</th></tr></thead>
+    <tbody>
+      <tr><td><b>商业价值</b></td><td>切入点是否成立、有无护城河、变现路径是否可行、是否真有人用</td></tr>
+      <tr><td><b>切入角度</b></td><td>是否避开红海、与现有产品的差异化在哪</td></tr>
+      <tr><td><b>功能完成度</b></td><td>声称的功能是否都真的实现、能跑通</td></tr>
+      <tr><td><b>完整性</b></td><td>按"能收费的商业产品"必备功能对齐：账号闭环 / 支付 / 合规 / 分发</td></tr>
+      <tr><td><b>可用性</b></td><td>桌面 + 移动端体验、操作反馈、错误提示</td></tr>
+      <tr><td><b>健壮性</b></td><td>边界输入、异常、校验、错误处理</td></tr>
+      <tr><td><b>安全性</b></td><td>鉴权、越权、输入校验、限流、供应链</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>证据规则：</b>真实浏览器（headless Chromium，1440×900 与 390×844）走完全部 7 个功能页；通读 2302 行源码；脚本直连后端 API 验证服务端行为。每条结论均附可复现证据（命令 + 返回）；明确区分「实测」（有证据）与「推断」（无法直接验证，如 AI 厂商）。</p>
+</section>
+
+<!-- ================= 04 问题清单 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>问题清单</h2><span class="sec-kicker">Findings Register · 21</span></div>
+  <p class="lead">全部 21 项发现按级别登记。详细的现象、证据与建议见 §05；亮点见 §06。状态均为"未修复"（首次评估）。</p>
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th style="width:64px">编号</th><th style="width:74px">级别</th><th>问题</th><th style="width:96px">模块</th></tr></thead>
+    <tbody>
+      <tr><td class="id">C-1</td><td><span class="sev c">严重</span></td><td>练习历史永久为空：数据库缺 <code>ExerciseRecord</code> 表，错误被静默吞掉</td><td>数据 / 出题</td></tr>
+      <tr><td class="id">C-2</td><td><span class="sev c">严重</span></td><td>额度卡片永不渲染：接口 URL 多拼一个 <code>/api</code> 导致 404</td><td>前端 / 接口</td></tr>
+      <tr><td class="id">C-3</td><td><span class="sev c">严重</span></td><td>听写判分用子串匹配：输入一个"的"字可得 80 分</td><td>逻辑 / 听写</td></tr>
+      <tr><td class="id">C-4</td><td><span class="sev c">严重</span></td><td>听写成绩不落库：刷新即丢，不计入统计</td><td>数据 / 听写</td></tr>
+      <tr><td class="id">C-5</td><td><span class="sev c">严重</span></td><td>注册接口零校验：假邮箱、1 位密码均可注册，无邮箱验证</td><td>安全 / 账号</td></tr>
+      <tr><td class="id">C-6</td><td><span class="sev c">严重</span></td><td>AI 批改接口无输入长度上限：可被批量刷量烧毁模型账单</td><td>安全 / 成本</td></tr>
+      <tr><td class="id">M-1</td><td><span class="sev m">主要</span></td><td>选择题选项显示为"A. A. …"：前后端各加一次字母前缀</td><td>体验 / 出题</td></tr>
+      <tr><td class="id">M-2</td><td><span class="sev m">主要</span></td><td>未作答也能提交，并向后端发送 NUL 字符；可白嫖答案</td><td>逻辑 / 出题</td></tr>
+      <tr><td class="id">M-3</td><td><span class="sev m">主要</span></td><td>批改结果渲染在屏幕外 1695px，无自动滚动，等 6 秒似无反应</td><td>体验 / 写作</td></tr>
+      <tr><td class="id">M-4</td><td><span class="sev m">主要</span></td><td>已提交作文以"草稿"复活，可能白烧一次每日额度</td><td>逻辑 / 写作</td></tr>
+      <tr><td class="id">M-5</td><td><span class="sev m">主要</span></td><td>移动端仪表盘横向溢出（821px＞视口 390px）</td><td>体验 / 移动</td></tr>
+      <tr><td class="id">M-6</td><td><span class="sev m">主要</span></td><td>错词卡隐形删除按钮，触屏可误删且无确认</td><td>体验 / 错词</td></tr>
+      <tr><td class="id">M-7</td><td><span class="sev m">主要</span></td><td>仅 1 篇作文时进步曲线为空白框（渲染与计算条件不一致）</td><td>逻辑 / 统计</td></tr>
+      <tr><td class="id">M-8</td><td><span class="sev m">主要</span></td><td>登录接口无任何限流，弱密码可爆破</td><td>安全 / 账号</td></tr>
+      <tr><td class="id">M-9</td><td><span class="sev m">主要</span></td><td>"静默 return"通病：按钮点了无任何反馈</td><td>体验 / 全站</td></tr>
+      <tr><td class="id">M-10</td><td><span class="sev m">主要</span></td><td>前端依赖未锁版本、无 SRI、无 CSP，凭证可被投毒脚本读取</td><td>安全 / 供应链</td></tr>
+      <tr><td class="id">m-1</td><td><span class="sev n">次要</span></td><td>"听写"无声，实为默写</td><td>功能 / 听写</td></tr>
+      <tr><td class="id">m-2</td><td><span class="sev n">次要</span></td><td>错词本可存中文 / 乱码 / HTML（无 XSS，但为脏数据）</td><td>功能 / 错词</td></tr>
+      <tr><td class="id">m-3</td><td><span class="sev n">次要</span></td><td>账号找回体系整体缺失（找回 / 验证 / 改密 / 注销全 404）</td><td>完整性 / 账号</td></tr>
+      <tr><td class="id">m-4</td><td><span class="sev n">次要</span></td><td>有删作文接口却无前端入口；后端原始错误透传浏览器</td><td>功能 / 后端</td></tr>
+      <tr><td class="id">m-5</td><td><span class="sev n">次要</span></td><td>CORS 完全开放（因用 Bearer 非 Cookie，风险不高）</td><td>安全 / 接口</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 05 详细发现 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>详细发现</h2><span class="sec-kicker">Detailed Findings</span></div>
+
+  <h3>严重 · Critical（6）</h3>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-1</span><span class="fmod">数据 / 出题</span></div>
+    <div class="find-t">整个「练习历史」永远为空：数据库里没有这张表</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv">完整做完一整套阅读理解并提交后，练习历史仍显示"还没有练习记录"。</span></div>
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>POST /api/exercises/submit → <b>500</b>
+Supabase POST ExerciseRecord 404: {"code":"<b>PGRST205</b>",
+ "message":"Could not find the table 'public.ExerciseRecord'"}</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">后端往不存在的表写入；前端 <code>catch(e){console.error(...)}</code> <b>把错误吞掉</b>，界面照常显示，缺陷可长期无人察觉。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">在 Supabase 建 <code>ExerciseRecord</code> 表；两处 <code>catch</code> 改为 <code>showToast('保存失败','error')</code>，静默吞异常是它藏这么久的根因。</span></div>
+    </div>
+  </div>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-2</span><span class="fmod">前端 / 接口</span></div>
+    <div class="find-t">仪表盘整块「额度」卡片永不显示：URL 多写一个 <code>/api</code></div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>API_BASE = '...onrender.com<b>/api</b>'   // 第 1454 行
+fetch(`${API_BASE}<b>/api</b>/user/usage`) → /api/api/... → <b>404</b>
+手动请求正确地址 /api/user/usage → <i>200</i>（后端正常）</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv"><code>userUsage</code> 恒为 <code>null</code>，源码 156–195 行整块额度卡片<b>一次都没渲染过</b>；用户不知剩余次数，只能被"额度已用完"弹窗拦住。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">删除三处多余 <code>/api</code>（第 2196 / 2212 / 2237 行）。三行改动换回整块 UI 与全部付费接口，全篇性价比最高。</span></div>
+    </div>
+  </div>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-3</span><span class="fmod">逻辑 / 听写</span></div>
+    <div class="find-t">听写判分用子串匹配：输入一个「的」字可得 80 分</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>isCorrect = userAnswer === meaning || meaning<b>.includes(userAnswer)</b>;
+// 全部 5 题只输入 "的" → <b>得分 80，答对 4/5</b></pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">任意子串即判对，释义几乎必含"的/，/adj"。功能完全失去检测能力。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv"><b>止血：</b>答案 ≥ 2 字且命中某一分号切分义项。<b>根治：</b>en2zh 交给已在用的大模型判语义等价，零成本复用现有 AI 能力。</span></div>
+    </div>
+  </div>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-4</span><span class="fmod">数据 / 听写</span></div>
+    <div class="find-t">听写成绩不落库：刷新即丢，也不进统计</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv"><code>submitDictationAnswer()</code> 全程<b>无任何网络请求</b>（抓包确认零后端调用）。得分只在内存，刷新即失。</span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">结合 C-3，听写页现状是：判分错误 + 成绩不保存。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">听写结束复用 <code>/exercises/submit</code>（<code>type:'dictation'</code>），与阅读/完型同链路；前提是先建 C-1 的表。</span></div>
+    </div>
+  </div>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-5</span><span class="fmod">安全 / 账号</span></div>
+    <div class="find-t">注册接口零校验：假邮箱、1 位密码可注册，无邮箱验证</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>密码 "1"        → <b>200 发 token</b>   无密码长度校验
+邮箱 "notanemail" → <b>200 发 token</b>   无邮箱格式校验
+空字段          → 400「均为必填」    <i>仅"非空"这一层</i></pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">假邮箱可建号（注册即登录，无激活）；弱密码可爆破；<b>可被脚本批量注册</b>，C-6 烧钱链的第一环。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">服务端校验邮箱格式 + 密码 ≥ 8 位；接入邮箱验证码/激活，注册后置为未激活。</span></div>
+    </div>
+  </div>
+
+  <div class="find c">
+    <div class="find-h"><span class="sev c">严重</span><span class="fid">C-6</span><span class="fmod">安全 / 成本</span></div>
+    <div class="find-t">AI 批改接口无输入长度上限：会直接烧毁模型账单</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>向 /api/writings/grade 发 200KB 请求体
+bytes = <b>200000</b>　status = <b>200</b>　耗时 <b>5416ms</b>（模型真被调用）</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">无长度校验、无 413。配合免费注册（C-5），可批量注册 + 每次塞 200KB，低成本打爆账单。<b>唯一一条会真正亏钱的问题。</b></span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">调模型前卡死 <code>content.length</code>（5000 字符封顶）返回 400；Express 加 <code>express.json({limit:'64kb'})</code>。上线前必做。</span></div>
+    </div>
+  </div>
+
+  <h3>主要 · Major（10）</h3>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-1</span><span class="fmod">体验 / 出题</span></div>
+    <div class="find-t">所有选项显示为「A. A. …」：前后端各加一次字母前缀</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv">后端返回的选项已含 <code>"A. "</code>，前端第 474 行又拼 <code>String.fromCharCode(65+oi)</code>。阅读理解的每个选项皆如此；完型填空的选项后端返回的是裸单词、不带前缀，不受影响。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">后端 prompt 要求 options 只返回纯文本，字母序号交给前端统一生成。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-2</span><span class="fmod">逻辑 / 出题</span></div>
+    <div class="find-t">未作答也能提交，向后端发 NUL 字符，可白嫖答案</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv">未答题 <code>exerciseAnswers[i]</code> 为 <code>undefined</code>，<code>fromCharCode(65+undefined)</code> 得 NUL 发给后端；界面照常展开全部答案与解析。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">提交前校验是否全部作答，未完成则提示并高亮未答题号。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-3</span><span class="fmod">体验 / 写作</span></div>
+    <div class="find-t">批改结果渲染在屏幕外，等 6 秒像什么都没发生</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>视口高 900px，结果面板顶部 <b>1695px</b>（屏幕外 795px）
+全文件 scrollIntoView 出现 <b>0</b> 次</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">最有价值的输出藏在"万能句型库"之下，用户须自行翻过才能看到分数。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">拿到结果后 <code>scrollIntoView({behavior:'smooth'})</code>；并把结果面板移到编辑器正下方。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-4</span><span class="fmod">逻辑 / 写作</span></div>
+    <div class="find-t">已提交作文以"未完成草稿"复活，可能白烧每日额度</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv"><code>submitWriting()</code> 成功后未清 <code>localStorage.writingDraft</code>。刷新后提示"已恢复草稿"，编辑器为刚批改过那篇。免费版每天 3 次，用户很可能再点一次提交。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">成功分支加 <code>removeItem('writingDraft')</code>。另：<code>loadDraft()</code> 读的是拼错的 <code>'writingEraft'</code>，靠 <code>||</code> 兜住才未出事。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-5</span><span class="fmod">体验 / 移动</span></div>
+    <div class="find-t">手机上仪表盘横向滑动：而它是打开的第一屏</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>390px 视口：仅仪表盘 scrollWidth = <b>821px</b>
+"高频错词 TOP5" 卡释义用 truncate(nowrap)，min-content 撑到 805px
+给 grid 子项加 min-width:0 → <b>821 → 390</b>　<i>溢出消失</i></pre></span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv"><code>grid lg:grid-cols-2</code> 的两个直接子 div 加 <code>min-w-0</code>。一处解决。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-6</span><span class="fmod">体验 / 错词</span></div>
+    <div class="find-t">错词卡隐形删除按钮，触屏可误删且无确认</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv">按钮 <code>opacity-0 group-hover:opacity-100</code>，但实测 <code>pointer-events:auto</code>、可被点中；手机无 hover，等于每卡右上压着一个看不见却能点的删除热区，<code>deleteWord()</code> 无 confirm。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">触屏常显按钮（<code>@media (hover:none)</code>）或改左滑；删除前给确认或可撤销提示。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-7</span><span class="fmod">逻辑 / 统计</span></div>
+    <div class="find-t">仅 1 篇作文时进步曲线是空白框</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv">模板 <code>v-if="recentWritings?.length"</code>（≥1 渲染）与计算 <code>if(len&lt;2) return []</code>（&lt;2 返回空）条件不一致，新用户看到只有轴标签的空盒子。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">模板条件改 <code>&gt;=2</code>；或单点时画圆点加分数标注。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-8</span><span class="fmod">安全 / 账号</span></div>
+    <div class="find-t">登录接口无任何限流</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>连续 8 次错误密码 → <b>401 ×8</b>，无退避 / 锁定 / 验证码</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">测试账号密码为 <code>22</code>（两位数字），字典可秒破。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">按 IP + 邮箱失败计数（<code>express-rate-limit</code>），5 次后指数退避。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-9</span><span class="fmod">体验 / 全站</span></div>
+    <div class="find-t">"静默 return"通病：按钮点了没有任何反馈</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">现象</span><span class="fv"><code>addWord</code> / <code>submitFeedback</code> / <code>submitWriting</code> 皆为 <code>if(!x.trim())return</code>，无 toast、无标红。用户只得到"点了没反应"，体感等同网站坏了。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">用现成 <code>showToast()</code>，或把按钮 <code>:disabled</code> 与校验绑定。</span></div>
+    </div>
+  </div>
+
+  <div class="find m">
+    <div class="find-h"><span class="sev m">主要</span><span class="fid">M-10</span><span class="fmod">安全 / 供应链</span></div>
+    <div class="find-t">前端依赖未锁版本、无 SRI、无 CSP</div>
+    <div class="find-b">
+      <div class="fld"><span class="fk">证据</span><span class="fv"><pre>unpkg.com/<b>vue@3</b>/...  cdn.tailwindcss.com   ← 浮动版本
+Netlify 响应头无 CSP，两个 script 均无 integrity</pre></span></div>
+      <div class="fld"><span class="fk">影响</span><span class="fv">token 存 localStorage；unpkg 或 Tailwind CDN 一旦被投毒，注入脚本可读走<b>所有用户</b>凭证。</span></div>
+      <div class="fld fix"><span class="fk">建议</span><span class="fv">锁具体版本 + <code>integrity</code>；进一步把 Tailwind 换构建产物、Vue 本地打包；<code>netlify.toml</code> 加 CSP 头。</span></div>
+    </div>
+  </div>
+
+  <h3>次要 · Minor（5）</h3>
+
+  <div class="find n">
+    <div class="find-h"><span class="sev n">次要</span><span class="fid">m-1</span><span class="fmod">功能 / 听写</span></div>
+    <div class="find-t">「听写」无声，实为默写</div>
+    <div class="find-b"><div class="fld"><span class="fk">证据</span><span class="fv">全文 <code>speakWord()</code> 只在第 323 行（错词本卡片的"朗读"按钮）被调用；听写模板（330–400 行）没有任何 speak/audio 调用，<code>startDictation()</code> 里也没有，题号切换也不触发播音；模板直接把 <code>dictationWords[dictationIndex].word</code> 当文字渲染。</span></div><div class="fld"><span class="fk">说明</span><span class="fv">所以听写里连手动"朗读"按钮都没有，更没有自动播，是纯"看词写义"。错词本已有 Web Speech 朗读能力可复用。真正听写应藏词、自动播读、让学生拼写。</span></div></div>
+  </div>
+  <div class="find n">
+    <div class="find-h"><span class="sev n">次要</span><span class="fid">m-2</span><span class="fmod">功能 / 错词</span></div>
+    <div class="find-t">错词本可存中文 / 乱码 / HTML 标签</div>
+    <div class="find-b"><div class="fld"><span class="fk">说明</span><span class="fv"><code>你好世界</code>、<code>zzqwxyfoo</code>、<code>&lt;img src=x onerror=alert(1)&gt;</code> 均入库，无 <code>maxlength</code>。<b>不会 XSS</b>（数据走插值转义），但为脏数据、会污染 AI 出题。建议限制 <code>/^[a-zA-Z][a-zA-Z\-' ]{0,48}$/</code>。</span></div></div>
+  </div>
+  <div class="find n">
+    <div class="find-h"><span class="sev n">次要</span><span class="fid">m-3</span><span class="fmod">完整性 / 账号</span></div>
+    <div class="find-t">账号找回体系整体缺失</div>
+    <div class="find-b"><div class="fld"><span class="fk">证据</span><span class="fv"><code>/auth/forgot</code>、<code>reset-password</code>、<code>verify-email</code>、<code>change-password</code> 全 404。忘密码即永久锁死，无法改密码。加上注册可能是假邮箱，连"发重置邮件"都走不通。</span></div></div>
+  </div>
+  <div class="find n">
+    <div class="find-h"><span class="sev n">次要</span><span class="fid">m-4</span><span class="fmod">功能 / 后端</span></div>
+    <div class="find-t">有删作文接口却无前端入口；后端原始错误透传浏览器</div>
+    <div class="find-b"><div class="fld"><span class="fk">说明</span><span class="fv"><code>DELETE /api/writings/:id</code> 通（返回 200）但写作历史无入口；写砸的作文只能永久留着拉低平均分。另 console 暴露完整 <code>PGRST205 / public.ExerciseRecord</code>，生产环境应做错误映射。</span></div></div>
+  </div>
+  <div class="find n">
+    <div class="find-h"><span class="sev n">次要</span><span class="fid">m-5</span><span class="fmod">安全 / 接口</span></div>
+    <div class="find-t">CORS 完全开放</div>
+    <div class="find-b"><div class="fld"><span class="fk">说明</span><span class="fv"><code>Access-Control-Allow-Origin: *</code>。因用 Bearer token 非 Cookie，浏览器不自动带凭证，<b>不构成 CSRF，风险不高</b>；但任何站点可直接调 API，收紧到 Netlify 域名零成本。</span></div></div>
+  </div>
+</section>
+
+<!-- ================= 06 亮点 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>做得好的</h2><span class="sec-kicker">Strengths</span></div>
+  <p class="lead">这一节分两组。<b>第一组是你自己做的判断</b>，这些 AI 替不了。<b>第二组是实测下来站得住的部分</b>，不管代码是谁写的，结果是对的。批改的文字写得好不好，不算你的，那是模型的事。</p>
+
+  <h3>A · 属于你的判断</h3>
+  <div class="wins">
+    <div class="win"><span class="tick">✓</span><div><h4>这是你自己的想法，不是任务</h4><p>没人布置，也没有截止日期，你自己把一个想法做成了能打开的网站。现在写代码 AI 能帮很多，但"要不要做、做什么"这一步还是得自己起头。后面挑的所有毛病，都是因为这件事值得较真。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>没去正面做背单词，方向可以理解</h4><p>那个方向百词斩、扇贝、墨墨已经占满了，新产品很难进去，绕开是合理的。但有一点要说清楚：那些产品的错词本是有来路的，先测你，你错了，那个词才进错词本。你这里是让用户自己往里输错词，这一步是反的，学习者不会这么干。方向对，起点的逻辑不对，§07 会展开。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>用用户自己的错词去出题，这个连接是好的</h4><p>我加了五个词，生成的阅读文章把五个词都自然地放进了一个故事里，其中一道题就是考那个词。文章写得顺是模型的功劳，<b>"拿我的数据出我的题"这个想法是你的</b>。它成立的前提是错词得由系统替用户攒出来，现在这个前提还不成立。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>批改要输出什么，是你定的</h4><p>分四个维度打分、统计错误类型、逐句对照修改、再给优点和建议。要哪些东西、按什么维度评，这是你的产品定义；<b>每一格填得好不好，是模型的事</b>。实测下来这套结构信息量很足。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>写作页看得出是考过试的人在设计</h4><p>题库按高考、四级、六级分级，再按议论文、应用文、记叙文、图表作文分类，一共 12 篇；有考试计时、实时词数、草稿自动保存；句型库 20 条按开头、转折、论证、结尾归类。这些细节跟代码没关系。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>把整条链路跑通并上了线</h4><p>前端、后端、大模型、鉴权、额度、部署，就算每一块都有 AI 帮忙，把它们接起来、发上线、让别人能打开，也是实打实做完了一件事。很多人做到本地能跑就停了。</p></div></div>
+  </div>
+
+  <h3>B · 实测下来站得住的</h3>
+  <div class="wins">
+    <div class="win"><span class="tick">✓</span><div><h4>鉴权和越权都守住了</h4><p>我用普通账号的 token 打管理接口，全是 403；用 B 账号去读、删 A 的作文和错词，全是 404，A 的数据没动；伪造一个 <code>alg:none</code> 的 JWT，返回 401；额度也是服务端在数。值得想一想它是怎么做到的，能不能把同样的做法用到别处。</p></div></div>
+    <div class="win"><span class="tick">✓</span><div><h4>登录态失效处理得干净</h4><p>把 token 换成假的再刷新，页面清掉凭证、回到登录页，没有白屏，也没卡在半登录的状态。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= 07 商业与需求 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>商业价值 · 完整性 · 需求现实</h2><span class="sec-kicker">Business & Demand</span></div>
+
+  <h3>会有人用吗：需求与获客现实</h3>
+  <div class="box crit"><p><b>直说：按现在这个样子放出去，基本不会有人一直用。问题不在代码，在三个产品层面的决定，目前都还没做。</b></p></div>
+  <p><b>一、渠道不对。</b>用的人是国内学生，可产品跑在 netlify.app 上、用邮箱登录。学生不怎么用邮箱，他们在微信小程序、App Store 和抖音里。网页也没法推送，也不会留在手机桌面上。东西再好，放错了地方等于没发。</p>
+  <p><b>二、错词的来路反了，这是最要紧的一条。</b>§01 的图 4 已经画清楚了：错词本的唯一来源是用户手打，代码里没有任何一条把错误写回错词本的边。百词斩、扇贝是先测你、你错了才进错词本，用户什么都不用填；这里要用户先在别处知道自己错了，再来这里录一遍，没人会这么做。我新注册一个号进去，每一页都是空的。<b>起点没有来源，闭环转不起来。</b></p>
+  <p><b>三、没有让人回来的机制。</b>学习类产品靠习惯：打卡、推送、每日计划、排行榜。现在只有一个连续天数，没有通知，没有小程序，没有每日计划。就算有人来了也留不住。</p>
+  <div class="box good">
+    <p><b>不过里面有一个真能用的东西。</b>作文批改这块质量是好的，"便宜的、能逐句改的作文批改"是有人在找的。我要是你，就做四件事：</p>
+    <p>① <b>只留作文批改这一个功能</b>；② <b>只服务一类人</b>，比如四六级、考研，或者高中生；③ <b>改成微信小程序，作文拍照上传</b>；④ <b>最关键的一步，让错词本自己长出来</b>：批改的时候模型已经把错误都找出来了，直接写进错词本；听写和出题里答错的词也自动进去。再往前一步，加一个能产生错词的正向环节，比如先测一遍词，或者拍照上传错题，让错词本像扇贝那样是测出来的结果，不是让用户自己填的。这一步做了，起点才有来源，闭环才真的转起来。</p>
+  </div>
+  <p>现在它更像一个演示版，截图好看，真用的时候很多页面是空的。离"有人用"差的不是十个功能，是三四个决定：渠道、给错词一个来路、批改结果自动回流。</p>
+
+  <h3>切入点选对了：但价值还没兑现</h3>
+  <p>没去碰背单词这个红海，选了错词、出题、写作、批改、回流这条线，判断是对的。错词本是攒在用户这里的数据，用得越久越不想走，前提是这些错词得是系统替他攒的、不是他自己填的；AI 批改是真能收钱的点，人工改一篇要 5 到 20 块，AI 只要几分钱；出题把这两头连上了，别人不好抄。可惜整套定价页被源码里一个 <code>v-if="false &amp;&amp;"</code> 关掉了，导航里也没有入口，用户根本到不了。触发额度上限的时候只弹一个"联系管理员"。也就是说，<b>现在没有自助付费</b>。</p>
+
+  <h3>完整性 · 对齐"能收费的商业产品"必备功能</h3>
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th style="width:130px">层</th><th>覆盖度</th><th>缺口</th></tr></thead>
+    <tbody>
+      <tr><td><b>核心学习闭环</b></td><td class="num">~75%</td><td>听写残缺、练习历史缺失、额度不显示</td></tr>
+      <tr><td><b>商业化闭环</b></td><td class="num">~10%</td><td>定价页关闭、无自助支付、无订单/发票/到期提醒</td></tr>
+      <tr><td><b>账号生命周期</b></td><td class="num">~30%</td><td>缺手机/微信登录、找回/改密/注销、邮箱验证</td></tr>
+      <tr><td><b>合规与分发</b></td><td class="num">~5%</td><td>无 ICP 备案、无生成式AI备案/内容审核、无用户协议/隐私政策、无未成年人保护、无小程序</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box"><p><b>完整性给 38 分的理由：</b>当技术演示看，核心闭环有七八成了，不错。但当成一个能向国内用户收费的产品看，必备的东西只有四成不到。支付、合规、分发这三层几乎是空的，其中合规这一层不做就不能上线。好在这一层八成是流程和手续：备案、协议、支付签约、小程序审核，不是写代码。</p></div>
+</section>
+
+<!-- ================= 08 考什么 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>这个项目真正考验的是什么</h2><span class="sec-kicker">What's Being Tested</span></div>
+  <p class="lead">现在 AI 能把东西做出来，所以考验的重点换了。一个用 AI 做的 app，真正考的是下面四件 AI 帮不上忙的事：</p>
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th style="width:104px">能力</th><th>为什么 AI 帮不上</th></tr></thead>
+    <tbody>
+      <tr><td><b>① 判断力</b></td><td>做什么，<b>不做什么</b>。你让 AI 做什么它就做什么，不会告诉你这个功能没人要。把功能砍到只剩一个，这种减法反而更难。</td></tr>
+      <tr><td><b>② 需求辨真伪</b></td><td>AI 只会优化你给它的方案，判断不了有没有人要。"听起来合理"和"真有人每天用"是两回事，只能靠人分辨。</td></tr>
+      <tr><td><b>③ 整合与把关</b></td><td>AI 是一块一块生成的，块与块之间的接缝没人管。这份报告里的问题差不多全在接缝上。肯不肯不信任代码、自己把整条路走一遍、测一测集成，现在比会不会写更要紧。</td></tr>
+      <tr><td><b>④ 完成度</b></td><td>AI 很快能把你带到八成，剩下两成是空状态、错误处理、找回密码、合规、分发这些没意思的活，它不会催你做，但产品是在这两成里成型的。</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box accent"><p>以前看你会不会写。现在看你知不知道该写什么、拼出来的整体对不对、没人要的东西肯不肯停。做出来这一步你已经做到了，接下来练的是判断、整合、验证和收尾。<b>这不是在批评，这几样现在最值钱。</b></p></div>
+</section>
+
+<!-- ================= 09 路线图 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>修复路线图</h2><span class="sec-kicker">Roadmap</span></div>
+  <p class="lead">按投入产出比排序，非按严重度。前四项合计约 1–2 小时。</p>
+  <div class="wrap-tbl"><table class="tbl">
+    <thead><tr><th style="width:40px">#</th><th>动作</th><th>关联</th><th style="width:78px">成本</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>删三处多余 <code>/api</code> → 换回额度 UI + 付费接口</td><td class="id">C-2</td><td class="num">3 行</td></tr>
+      <tr><td class="num">2</td><td>建 ExerciseRecord 表 + 静默 catch 改提示</td><td class="id">C-1 · C-4</td><td class="num">建表+2行</td></tr>
+      <tr><td class="num">3</td><td>AI 接口加长度上限 + express.json limit</td><td class="id">C-6</td><td class="num">2 行</td></tr>
+      <tr><td class="num">4</td><td>grid 子项 min-w-0 + 批改结果 scrollIntoView</td><td class="id">M-5 · M-3</td><td class="num">2 行</td></tr>
+      <tr><td class="num">5</td><td>听写语义判分 + 接入 /exercises/submit</td><td class="id">C-3 · C-4</td><td class="num">半天</td></tr>
+      <tr><td class="num">6</td><td>选项去前缀、未答校验、草稿清除、删除确认</td><td class="id">M-1·2·4·6</td><td class="num">半天</td></tr>
+      <tr><td class="num">7</td><td>注册邮箱/密码校验 + 登录限流</td><td class="id">C-5 · M-8</td><td class="num">半天</td></tr>
+      <tr><td class="num">8</td><td>找回密码 / 邮箱验证 / 改密码</td><td class="id">m-3</td><td class="num">1 天</td></tr>
+      <tr><td class="num">9</td><td>锁 CDN 版本 + SRI + CSP</td><td class="id">M-10</td><td class="num">半天</td></tr>
+      <tr><td class="num">10</td><td>拆 Vite 项目 + 主路径自动化测试</td><td>—</td><td class="num">2–3 天</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 写在最后 ================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">—</span><h2>写在最后 · 给作者</h2><span class="sec-kicker">Note to the Author</span></div>
+  <div class="box good">
+    <p>这份报告是按<b>"能收费的商业产品"</b>的标准来挑毛病的，不是按练手作品。所以列了 21 条问题，分数也不客气。用这个标准，是因为你说这是你自己的想法、不是作业。自己想做成的东西，值得按真实世界的尺子量。请这样读它。</p>
+    <p>真正是你自己做出来的东西，报告里写清楚了：选题、用错词出题的想法、批改输出结构、题库和句型的整理、把整条链路跑通上线。这些 AI 替不了，也是你接下来最该继续做大的。</p>
+    <p>短板也写清楚了。它们有一个共同点：<b>都在接缝上，或者在"有没有人要"上，不在"会不会写"上</b>。接缝的问题，自己把完整的用户路径走一遍就能发现；有没有人要，先砍到一个功能、找一类人、看他们回不回来。这两件事比写代码好学，也更有用。</p>
+    <p>把东西做出来这一步你已经做到了。接下来练判断、整合、验证和收尾。先把 C-1 到 C-6 修掉，再把一个功能做到有人每天回来。到那时候，这份报告就该重写了。</p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <b>测试方式</b>　真实浏览器（headless Chromium，1440×900 与 390×844）走完 7 个功能页；通读 2302 行前端源码；脚本直连后端 API 验证注册校验、越权、JWT 伪造、额度强制、输入上限等服务端行为。<br>
+  <b>测试足迹（需清理）</b>　为测越权与注册，创建 3 个垃圾账号（1位密码号 / notanemail / a@b），后端无删号接口，请到 Supabase User 表手动清除；notanemail 名下数据已用其 token 删净。主账号 22@qq.com 下留 5 个错词与 1 篇作文，可自行删除。<br>
+  <b>说明</b>　报告中的结论均有可复现证据（命令 + 返回）。越权已用两个账号实测确认安全。<br>
+  英语学习平台 · 产品评估报告 · 2026-09-03 · 供作者参考
+</footer>
+
+</div>
+
+</body>
+</html>

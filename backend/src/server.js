@@ -15,7 +15,7 @@ const REST_BASE = `${SUPABASE_URL}/rest/v1`;
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '64kb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -397,6 +397,10 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) return res.status(400).json({ error: '邮箱、密码、姓名均为必填' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return res.status(400).json({ error: '邮箱格式不正确' });
+    if (password.length < 8) return res.status(400).json({ error: '密码至少需要8位' });
+    if (name.trim().length > 50) return res.status(400).json({ error: '姓名不能超过50个字符' });
 
     const existing = await sbGet('User', `select=id&email=eq.${encodeURIComponent(email)}`);
     if (existing.length > 0) return res.status(409).json({ error: '该邮箱已注册' });
@@ -619,6 +623,7 @@ app.post('/api/exercises/dictation', authenticate, async (req, res) => {
 app.post('/api/exercises/generate', authenticate, checkQuota('exercise'), async (req, res) => {
   try {
     const { type = 'reading', wordCount = 8, difficulty = 3, examType = 'zhongkao' } = req.body;
+    if (wordCount > 20) return res.status(400).json({ error: '单词数量不能超过20' });
     const words = await sbGet('WrongWord',
       `select=word&"userId"=eq.${req.userId}&order=frequency.desc&limit=${wordCount}`
     );
@@ -781,6 +786,7 @@ app.post('/api/writings/grade', authenticate, checkQuota('writing'), async (req,
   try {
     const { title, content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: '写作内容不能为空' });
+    if (content.length > 5000) return res.status(400).json({ error: '写作内容不能超过5000字符' });
 
     const wordCount = content.trim().split(/\s+/).length;
     const prompt = `你是一位专业的英语写作老师。请批改以下英语作文，给出详细的反馈。所有评价、分析、建议都必须用中文。
