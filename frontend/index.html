@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>英语学习平台 - 错词本 · AI写作批改 · 智能出题</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.10" integrity="sha384-VK3iZSOy03XNa6Ba48af6ubHywenceWJjdXhhrvfhdaDgDGHRCt47O6A6d8fjdVu" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/vue@3.4.38/dist/vue.global.prod.js" integrity="sha384-Z9a2xA0EIaURxthVmeQmPrgSC05eG8Lch8X4Y2+lXpTg9wcxPj2m3QNurDl5hLiS" crossorigin="anonymous"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -225,11 +225,11 @@
 
           <div class="grid lg:grid-cols-2 gap-6">
             <!-- 写作进步曲线 -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-w-0">
               <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span>📈</span> 写作进步曲线
               </h3>
-              <div v-if="stats.recentWritings?.length" class="relative h-48">
+              <div v-if="stats.recentWritings?.length >= 2" class="relative h-48">
                 <svg class="w-full h-full" viewBox="0 0 400 180" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
@@ -255,7 +255,7 @@
             </div>
 
             <!-- 高频错词 -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-w-0">
               <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span>⚠️</span> 高频错词 TOP 5
               </h3>
@@ -467,7 +467,7 @@
                     :class="exerciseAnswers[qi] === oi ? (String.fromCharCode(65 + oi) === q.answer ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300') : 'hover:bg-slate-50'"
                     class="flex items-center gap-2 p-2 rounded-lg border border-transparent cursor-pointer transition-all">
                     <input type="radio" :name="`q${qi}`" v-model="exerciseAnswers[qi]" :value="oi" :disabled="exerciseSubmitted">
-                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
+                    <span>{{ String.fromCharCode(65 + oi) }}. {{ opt.replace(/^[A-D]\.\s*/, '') }}</span>
                     <span v-if="exerciseSubmitted && String.fromCharCode(65 + oi) === q.answer" class="ml-auto text-green-500">✓ 正确</span>
                   </label>
                 </div>
@@ -611,7 +611,7 @@
           </div>
 
           <!-- 批改结果 -->
-          <div v-if="writingFeedback" class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div v-if="writingFeedback" data-writing-feedback class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <h3 class="font-semibold text-slate-800">批改结果</h3>
               <div v-if="writingFeedback.score" class="text-2xl font-bold" :class="writingFeedback.score >= 80 ? 'text-green-500' : writingFeedback.score >= 60 ? 'text-orange-500' : 'text-red-500'">
@@ -1823,7 +1823,7 @@
         }
 
         async function addWord() {
-          if (!newWord.value.trim()) return;
+          if (!newWord.value.trim()) { showToast('请输入单词', 'error'); return; }
           loading.words = true;
           try {
             const data = await api('/wrong-words', { method: 'POST', body: JSON.stringify({ word: newWord.value }) });
@@ -1838,6 +1838,7 @@
         }
 
         async function deleteWord(id) {
+          if (!confirm('确认删除该错词？')) return;
           try {
             await api(`/wrong-words/${id}`, { method: 'DELETE' });
             wrongWords.value = wrongWords.value.filter(w => w.id !== id);
@@ -1934,8 +1935,10 @@
         }
 
         async function submitExercise() {
-          exerciseSubmitted.value = true;
           const questions = currentExercise.value.content.questions;
+          const unanswered = questions.findIndex((_, i) => exerciseAnswers[i] === undefined);
+          if (unanswered >= 0) { showToast(`请完成第 ${unanswered + 1} 题后再提交`, 'error'); return; }
+          exerciseSubmitted.value = true;
           let correct = 0;
           const userAnswerLetters = [];
           const correctAnswerLetters = [];
@@ -1962,8 +1965,10 @@
         }
 
         async function submitCloze() {
-          exerciseSubmitted.value = true;
           const blanks = currentExercise.value.content.blanks;
+          const unanswered = blanks.findIndex((_, i) => clozeAnswers[i] === undefined);
+          if (unanswered >= 0) { showToast(`请完成第 ${unanswered + 1} 空后再提交`, 'error'); return; }
+          exerciseSubmitted.value = true;
           let correct = 0;
           const userAnswerWords = [];
           const correctAnswerWords = [];
@@ -1991,7 +1996,7 @@
 
         // ========== 写作 ==========
         async function submitWriting() {
-          if (!writingForm.content.trim()) return;
+          if (!writingForm.content.trim()) { showToast('请输入写作内容', 'error'); return; }
           loading.writing = true;
           writingFeedback.value = null;
           try {
@@ -2001,8 +2006,12 @@
             });
             writingFeedback.value = typeof data.aiFeedback === 'string' ? JSON.parse(data.aiFeedback) : data.aiFeedback;
             showToast(`批改完成！得分 ${data.score || 'N/A'}`, 'success');
+            localStorage.removeItem('writingDraft');
             loadWritings();
             loadStats();
+            await nextTick();
+            const fbEl = document.querySelector('[data-writing-feedback]');
+            if (fbEl) fbEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
           } catch (err) { showToast(err.message, 'error'); }
           finally { loading.writing = false; }
         }
@@ -2016,7 +2025,7 @@
           }
         }
         function loadDraft() {
-          const draft = localStorage.getItem('writingEraft') || localStorage.getItem('writingDraft');
+          const draft = localStorage.getItem('writingDraft');
           if (draft) {
             try {
               const d = JSON.parse(draft);
@@ -2103,7 +2112,7 @@
         }
 
         async function submitFeedback() {
-          if (!feedbackForm.title.trim() || !feedbackForm.content.trim()) return;
+          if (!feedbackForm.title.trim() || !feedbackForm.content.trim()) { showToast('请填写标题和内容', 'error'); return; }
           try {
             await api('/feedback', { method: 'POST', body: JSON.stringify(feedbackForm) });
             showToast('反馈已提交，感谢你的意见！', 'success');

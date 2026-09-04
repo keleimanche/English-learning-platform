@@ -17,6 +17,24 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '64kb' }));
 
+// 登录限流：每个 IP 15 分钟内最多 5 次尝试
+const loginAttempts = new Map();
+const LOGIN_WINDOW = 15 * 60 * 1000;
+const LOGIN_MAX = 5;
+function loginLimiter(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+  const record = loginAttempts.get(ip) || { count: 0, resetAt: now + LOGIN_WINDOW };
+  if (now > record.resetAt) { record.count = 0; record.resetAt = now + LOGIN_WINDOW; }
+  record.count++;
+  loginAttempts.set(ip, record);
+  if (record.count > LOGIN_MAX) {
+    const retry = Math.ceil((record.resetAt - now) / 1000);
+    return res.status(429).json({ error: `登录尝试过多，请 ${retry} 秒后重试` });
+  }
+  next();
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const PORT = process.env.PORT || 3000;
@@ -423,7 +441,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: '邮箱和密码为必填' });
