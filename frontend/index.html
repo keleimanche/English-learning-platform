@@ -101,6 +101,9 @@
                 <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
                   {{ user?.name?.[0] || 'U' }}
                 </div>
+                <button @click="passwordModal = true" class="text-slate-400 hover:text-indigo-500 transition-colors" title="修改密码">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.286c1.543-.74 3.13.58 2.39 2.12a1.724 1.724 0 001.286 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.286 2.573c.74 1.543-.58 3.13-2.12 2.39a1.724 1.724 0 00-2.573 1.286c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.286c-1.543.74-3.13-.58-2.39-2.12a1.724 1.724 0 00-1.286-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.286-2.573c-.74-1.543.58-3.13 2.12-2.39a1.724 1.724 0 002.573-1.286z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
                 <button @click="logout" class="text-slate-400 hover:text-red-500 transition-colors" title="退出登录">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                 </button>
@@ -688,8 +691,13 @@
                   <h4 class="font-semibold text-slate-800">{{ w.title || '（无标题）' }}</h4>
                   <p class="text-xs text-slate-400">{{ formatDate(w.createdAt) }} · {{ w.wordCount }} 词</p>
                 </div>
-                <div v-if="w.score" class="text-xl font-bold" :class="w.score >= 80 ? 'text-green-500' : w.score >= 60 ? 'text-orange-500' : 'text-red-500'">
-                  {{ w.score }}
+                <div class="flex items-center gap-2">
+                  <div v-if="w.score" class="text-xl font-bold" :class="w.score >= 80 ? 'text-green-500' : w.score >= 60 ? 'text-orange-500' : 'text-red-500'">
+                    {{ w.score }}
+                  </div>
+                  <button @click="deleteWriting(w.id)" class="text-slate-300 hover:text-red-500 transition-colors p-1" title="删除">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
                 </div>
               </div>
               <p class="text-sm text-slate-600 line-clamp-2 mb-3">{{ w.content }}</p>
@@ -1432,6 +1440,22 @@
         </div>
       </div>
 
+      <!-- 修改密码弹窗 -->
+      <div v-if="passwordModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="passwordModal = false">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">🔑 修改密码</h3>
+          <div class="space-y-3">
+            <input v-model="passwordForm.oldPassword" type="password" placeholder="当前密码" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
+            <input v-model="passwordForm.newPassword" type="password" placeholder="新密码（至少8位）" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
+            <input v-model="passwordForm.confirmPassword" type="password" placeholder="确认新密码" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button @click="passwordModal = false" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200">取消</button>
+            <button @click="changePassword" :disabled="loading.password" class="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 disabled:opacity-50">{{ loading.password ? '提交中...' : '确认修改' }}</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 全局提示 -->
       <transition name="slide">
         <div v-if="toast.show" class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-medium"
@@ -1484,12 +1508,14 @@
         const writings = ref([]);
         const stats = ref({});
         const newWord = ref('');
-        const loading = reactive({ words: false, dictation: false, exercise: false, writing: false });
+        const loading = reactive({ words: false, dictation: false, exercise: false, writing: false, password: false });
 
         // ========== 公告与反馈 ==========
         const announcements = ref([]);
         const feedbackModal = ref(false);
         const feedbackForm = reactive({ title: '', content: '', category: 'suggestion' });
+        const passwordModal = ref(false);
+        const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
         const myFeedbacks = ref([]);
 
         // ========== 练习历史 ==========
@@ -1824,6 +1850,7 @@
 
         async function addWord() {
           if (!newWord.value.trim()) { showToast('请输入单词', 'error'); return; }
+          if (!/^[a-zA-Z][a-zA-Z\-' ]{0,48}$/.test(newWord.value.trim())) { showToast('单词只能含英文字母、连字符、撇号和空格，最长50字符', 'error'); return; }
           loading.words = true;
           try {
             const data = await api('/wrong-words', { method: 'POST', body: JSON.stringify({ word: newWord.value }) });
@@ -2099,6 +2126,16 @@
           catch (err) { showToast(err.message, 'error'); }
         }
 
+        async function deleteWriting(id) {
+          if (!confirm('确认删除这篇作文？')) return;
+          try {
+            await api(`/writings/${id}`, { method: 'DELETE' });
+            writings.value = writings.value.filter(w => w.id !== id);
+            showToast('已删除', 'success');
+            loadStats();
+          } catch (err) { showToast(err.message, 'error'); }
+        }
+
         // ========== 统计 ==========
         async function loadStats() {
           try { stats.value = await api('/stats'); }
@@ -2122,6 +2159,22 @@
             feedbackForm.category = 'suggestion';
             loadMyFeedbacks();
           } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function changePassword() {
+          if (!passwordForm.oldPassword || !passwordForm.newPassword) { showToast('请填写完整', 'error'); return; }
+          if (passwordForm.newPassword.length < 8) { showToast('新密码至少8位', 'error'); return; }
+          if (passwordForm.newPassword !== passwordForm.confirmPassword) { showToast('两次密码不一致', 'error'); return; }
+          loading.password = true;
+          try {
+            await api('/auth/change-password', { method: 'POST', body: JSON.stringify({ oldPassword: passwordForm.oldPassword, newPassword: passwordForm.newPassword }) });
+            showToast('密码修改成功', 'success');
+            passwordModal.value = false;
+            passwordForm.oldPassword = '';
+            passwordForm.newPassword = '';
+            passwordForm.confirmPassword = '';
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { loading.password = false; }
         }
 
         async function loadMyFeedbacks() {
@@ -2296,7 +2349,7 @@
         return {
           isLoggedIn, user, authMode, authForm, authError, authLoading, handleAuth, logout,
           tabs, currentTab,
-          wrongWords, writings, stats, newWord, loading,
+          wrongWords, writings, stats, newWord, loading, deleteWriting,
           addWord, deleteWord, speakWord,
           dictationConfig, dictationExercise, dictationWords, dictationIndex, dictationAnswer,
           dictationResults, dictationFinished, dictationCorrect, dictationScore,
@@ -2318,6 +2371,7 @@
           loadAdminFeedbacks, replyFeedback, loadAdminAnnouncements, createAnnouncement, toggleAnnouncement,
           announcements, feedbackModal, feedbackForm, myFeedbacks,
           loadAnnouncements, submitFeedback, loadMyFeedbacks,
+          passwordModal, passwordForm, changePassword,
           exerciseHistory, exerciseHistoryDetail, loadExerciseHistory, viewExerciseDetail,
           userUsage, upgradeModal, payOrder, payLoading, payChecking,
           loadUsage, showUpgradeModal, createOrder, checkPayStatus,

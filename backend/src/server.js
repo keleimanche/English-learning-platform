@@ -14,8 +14,23 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REST_BASE = `${SUPABASE_URL}/rest/v1`;
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://englishlearning33.netlify.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ],
+}));
 app.use(express.json({ limit: '64kb' }));
+
+// 错误信息清洗：不向客户端暴露 Supabase 内部错误码和表名
+function cleanError(err, fallback = '服务内部错误，请稍后重试') {
+  const msg = err?.message || '';
+  if (msg.includes('PGRST') || msg.includes('public.') || msg.includes('relation') || msg.includes('schema')) {
+    return fallback;
+  }
+  return msg || fallback;
+}
 
 // 登录限流：每个 IP 15 分钟内最多 5 次尝试
 const loginAttempts = new Map();
@@ -153,7 +168,7 @@ async function requireAdmin(req, res, next) {
     req.adminUser = users[0];
     next();
   } catch (err) {
-    res.status(500).json({ error: '权限检查失败: ' + err.message });
+    res.status(500).json({ error: '权限检查失败: ' + cleanError(err) });
   }
 }
 
@@ -168,7 +183,7 @@ async function requireProAccess(req, res, next) {
     if (['tester', 'pro', 'admin'].includes(role)) return next();
     return res.status(403).json({ error: '该功能需要升级权限，请联系管理员', upgradeRequired: true, currentRole: role });
   } catch (err) {
-    res.status(500).json({ error: '权限检查失败: ' + err.message });
+    res.status(500).json({ error: '权限检查失败: ' + cleanError(err) });
   }
 }
 
@@ -261,7 +276,7 @@ function checkQuota(feature) {
       }
       next();
     } catch (err) {
-      res.status(500).json({ error: '额度检查失败: ' + err.message });
+      res.status(500).json({ error: '额度检查失败: ' + cleanError(err) });
     }
   };
 }
@@ -283,7 +298,7 @@ async function consumeQuota(userId, feature) {
     else dailyUsage.exercise = (dailyUsage.exercise || 0) + 1;
     await sbPatch('User', `id=eq.${userId}`, { dailyUsage });
   } catch (err) {
-    console.error('扣减额度失败:', err.message);
+    console.error('扣减额度失败:', cleanError(err));
   }
 }
 
@@ -437,7 +452,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
     res.status(201).json({ token, user: { id, email, name, role: 'tester', plan: 'pro' } });
   } catch (err) {
-    res.status(500).json({ error: '注册失败: ' + err.message });
+    res.status(500).json({ error: '注册失败: ' + cleanError(err) });
   }
 });
 
@@ -463,8 +478,33 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: '登录失败: ' + err.message });
+    res.status(500).json({ error: '登录失败: ' + cleanError(err) });
   }
+});
+
+// 修改密码（需登录）
+app.post('/api/auth/change-password', authenticate, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: '请填写旧密码和新密码' });
+    if (newPassword.length < 8) return res.status(400).json({ error: '新密码至少 8 位' });
+
+    const users = await sbGet('User', `select=id,password&id=eq.${req.userId}`);
+    if (!users[0]) return res.status(404).json({ error: '用户不存在' });
+    const valid = await bcrypt.compare(oldPassword, users[0].password);
+    if (!valid) return res.status(401).json({ error: '旧密码错误' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await sbPatch('User', `id=eq.${users[0].id}`, { password: hashed });
+    res.json({ message: '密码修改成功' });
+  } catch (err) {
+    res.status(500).json({ error: '修改密码失败' });
+  }
+});
+
+// 忘记密码（暂不支持自助找回）
+app.post('/api/auth/forgot', async (req, res) => {
+  res.status(501).json({ error: '暂不支持自助找回密码，请联系管理员重置' });
 });
 
 // ============================================
@@ -477,7 +517,7 @@ app.get('/api/wrong-words', authenticate, async (req, res) => {
     );
     res.json(words);
   } catch (err) {
-    res.status(500).json({ error: '获取错词失败: ' + err.message });
+    res.status(500).json({ error: '获取错词失败: ' + cleanError(err) });
   }
 });
 
@@ -486,6 +526,9 @@ app.post('/api/wrong-words', authenticate, async (req, res) => {
     const { word } = req.body;
     if (!word?.trim()) return res.status(400).json({ error: '单词不能为空' });
     const trimmedWord = word.trim().toLowerCase();
+    if (!/^[a-zA-Z][a-zA-Z\-' ]{0,48}$/.test(trimmedWord)) {
+      return res.status(400).json({ error: '单词只能含英文字母、连字符、撇号和空格，最长 50 字符' });
+    }
 
     const existing = await sbGet('WrongWord',
       `select=id,frequency&"userId"=eq.${req.userId}&word=eq.${encodeURIComponent(trimmedWord)}`
@@ -530,7 +573,7 @@ app.post('/api/wrong-words', authenticate, async (req, res) => {
     await updateStats(req.userId);
     res.status(201).json(newWord);
   } catch (err) {
-    res.status(500).json({ error: '添加错词失败: ' + err.message });
+    res.status(500).json({ error: '添加错词失败: ' + cleanError(err) });
   }
 });
 
@@ -547,7 +590,7 @@ app.put('/api/wrong-words/:id', authenticate, async (req, res) => {
     const updated = await sbPatch('WrongWord', `id=eq.${req.params.id}`, updateBody);
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: '更新失败: ' + err.message });
+    res.status(500).json({ error: '更新失败: ' + cleanError(err) });
   }
 });
 
@@ -559,7 +602,7 @@ app.delete('/api/wrong-words/:id', authenticate, async (req, res) => {
     await updateStats(req.userId);
     res.json({ message: '已删除' });
   } catch (err) {
-    res.status(500).json({ error: '删除失败: ' + err.message });
+    res.status(500).json({ error: '删除失败: ' + cleanError(err) });
   }
 });
 
@@ -600,7 +643,7 @@ app.post('/api/wrong-words/batch', authenticate, async (req, res) => {
     await updateStats(req.userId);
     res.status(201).json(results);
   } catch (err) {
-    res.status(500).json({ error: '批量添加失败: ' + err.message });
+    res.status(500).json({ error: '批量添加失败: ' + cleanError(err) });
   }
 });
 
@@ -631,7 +674,7 @@ app.post('/api/exercises/dictation', authenticate, async (req, res) => {
     });
     res.json(exercise);
   } catch (err) {
-    res.status(500).json({ error: '生成听写失败: ' + err.message });
+    res.status(500).json({ error: '生成听写失败: ' + cleanError(err) });
   }
 });
 
@@ -706,7 +749,7 @@ app.post('/api/exercises/generate', authenticate, checkQuota('exercise'), async 
     await consumeQuota(req.userId, 'exercise');
     res.json(exercise);
   } catch (err) {
-    res.status(500).json({ error: '生成题目失败: ' + err.message });
+    res.status(500).json({ error: '生成题目失败: ' + cleanError(err) });
   }
 });
 
@@ -721,7 +764,7 @@ app.get('/api/exercises', authenticate, async (req, res) => {
     const exercises = await sbGet('Exercise', queryStr);
     res.json(exercises);
   } catch (err) {
-    res.status(500).json({ error: '获取练习失败: ' + err.message });
+    res.status(500).json({ error: '获取练习失败: ' + cleanError(err) });
   }
 });
 
@@ -733,7 +776,7 @@ app.get('/api/exercises/:id', authenticate, async (req, res) => {
     if (exercises.length === 0) return res.status(404).json({ error: '练习不存在' });
     res.json(exercises[0]);
   } catch (err) {
-    res.status(500).json({ error: '获取练习详情失败: ' + err.message });
+    res.status(500).json({ error: '获取练习详情失败: ' + cleanError(err) });
   }
 });
 
@@ -767,7 +810,7 @@ app.post('/api/exercises/submit', authenticate, async (req, res) => {
     await updateStats(req.userId);
     res.status(201).json(record);
   } catch (err) {
-    res.status(500).json({ error: '保存做题记录失败: ' + err.message });
+    res.status(500).json({ error: '保存做题记录失败: ' + cleanError(err) });
   }
 });
 
@@ -780,7 +823,7 @@ app.get('/api/exercises/records', authenticate, async (req, res) => {
     );
     res.json(records);
   } catch (err) {
-    res.status(500).json({ error: '获取做题记录失败: ' + err.message });
+    res.status(500).json({ error: '获取做题记录失败: ' + cleanError(err) });
   }
 });
 
@@ -793,7 +836,7 @@ app.get('/api/exercises/records/:id', authenticate, async (req, res) => {
     if (records.length === 0) return res.status(404).json({ error: '记录不存在' });
     res.json(records[0]);
   } catch (err) {
-    res.status(500).json({ error: '获取记录详情失败: ' + err.message });
+    res.status(500).json({ error: '获取记录详情失败: ' + cleanError(err) });
   }
 });
 
@@ -849,7 +892,7 @@ ${content}
     await consumeQuota(req.userId, 'writing');
     res.json(writing);
   } catch (err) {
-    res.status(500).json({ error: '写作批改失败: ' + err.message });
+    res.status(500).json({ error: '写作批改失败: ' + cleanError(err) });
   }
 });
 
@@ -884,7 +927,7 @@ ${content ? `学生已写内容：${content.slice(0, 200)}` : ''}
     }
     res.json(outline);
   } catch (err) {
-    res.status(500).json({ error: '生成提纲失败: ' + err.message });
+    res.status(500).json({ error: '生成提纲失败: ' + cleanError(err) });
   }
 });
 
@@ -895,7 +938,7 @@ app.get('/api/writings', authenticate, async (req, res) => {
     );
     res.json(writings);
   } catch (err) {
-    res.status(500).json({ error: '获取写作历史失败: ' + err.message });
+    res.status(500).json({ error: '获取写作历史失败: ' + cleanError(err) });
   }
 });
 
@@ -907,7 +950,7 @@ app.get('/api/writings/:id', authenticate, async (req, res) => {
     if (writings.length === 0) return res.status(404).json({ error: '写作不存在' });
     res.json(writings[0]);
   } catch (err) {
-    res.status(500).json({ error: '获取写作失败: ' + err.message });
+    res.status(500).json({ error: '获取写作失败: ' + cleanError(err) });
   }
 });
 
@@ -919,7 +962,7 @@ app.delete('/api/writings/:id', authenticate, async (req, res) => {
     await updateStats(req.userId);
     res.json({ message: '已删除' });
   } catch (err) {
-    res.status(500).json({ error: '删除失败: ' + err.message });
+    res.status(500).json({ error: '删除失败: ' + cleanError(err) });
   }
 });
 
@@ -953,7 +996,7 @@ app.get('/api/stats', authenticate, async (req, res) => {
 
     res.json({ ...stats, recentWritings, highFrequencyWords });
   } catch (err) {
-    res.status(500).json({ error: '获取统计失败: ' + err.message });
+    res.status(500).json({ error: '获取统计失败: ' + cleanError(err) });
   }
 });
 
@@ -980,7 +1023,7 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
 
     res.json({ userCount, wordCount, writingCount, exerciseCount, activeCount, topWords, recentUsers });
   } catch (err) {
-    res.status(500).json({ error: '获取管理统计失败: ' + err.message });
+    res.status(500).json({ error: '获取管理统计失败: ' + cleanError(err) });
   }
 });
 
@@ -997,7 +1040,7 @@ app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
     const totalCount = await sbCount('User', search ? `email=ilike.%${encodeURIComponent(search)}%` : '');
     res.json({ users, total: totalCount, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
-    res.status(500).json({ error: '获取用户列表失败: ' + err.message });
+    res.status(500).json({ error: '获取用户列表失败: ' + cleanError(err) });
   }
 });
 
@@ -1020,7 +1063,7 @@ app.get('/api/admin/users/:userId/detail', authenticate, requireAdmin, async (re
       stats: statsArr[0] || null,
     });
   } catch (err) {
-    res.status(500).json({ error: '获取用户详情失败: ' + err.message });
+    res.status(500).json({ error: '获取用户详情失败: ' + cleanError(err) });
   }
 });
 
@@ -1031,7 +1074,7 @@ app.get('/api/admin/users/:userId/wrong-words', authenticate, requireAdmin, asyn
     );
     res.json(words);
   } catch (err) {
-    res.status(500).json({ error: '获取用户错词失败: ' + err.message });
+    res.status(500).json({ error: '获取用户错词失败: ' + cleanError(err) });
   }
 });
 
@@ -1040,7 +1083,7 @@ app.delete('/api/admin/users/:userId/wrong-words/:wordId', authenticate, require
     await sbDelete('WrongWord', `id=eq.${req.params.wordId}&"userId"=eq.${req.params.userId}`);
     res.json({ message: '已删除' });
   } catch (err) {
-    res.status(500).json({ error: '删除错词失败: ' + err.message });
+    res.status(500).json({ error: '删除错词失败: ' + cleanError(err) });
   }
 });
 
@@ -1051,7 +1094,7 @@ app.get('/api/admin/users/:userId/writings', authenticate, requireAdmin, async (
     );
     res.json(writings);
   } catch (err) {
-    res.status(500).json({ error: '获取用户写作失败: ' + err.message });
+    res.status(500).json({ error: '获取用户写作失败: ' + cleanError(err) });
   }
 });
 
@@ -1062,7 +1105,7 @@ app.get('/api/admin/users/:userId/exercises', authenticate, requireAdmin, async 
     );
     res.json(exercises);
   } catch (err) {
-    res.status(500).json({ error: '获取用户练习失败: ' + err.message });
+    res.status(500).json({ error: '获取用户练习失败: ' + cleanError(err) });
   }
 });
 
@@ -1075,7 +1118,7 @@ app.get('/api/admin/users/:userId/exercise-records', authenticate, requireAdmin,
     );
     res.json(records);
   } catch (err) {
-    res.status(500).json({ error: '获取做题记录失败: ' + err.message });
+    res.status(500).json({ error: '获取做题记录失败: ' + cleanError(err) });
   }
 });
 
@@ -1088,7 +1131,7 @@ app.get('/api/admin/exercise-records/:id', authenticate, requireAdmin, async (re
     if (records.length === 0) return res.status(404).json({ error: '记录不存在' });
     res.json(records[0]);
   } catch (err) {
-    res.status(500).json({ error: '获取记录详情失败: ' + err.message });
+    res.status(500).json({ error: '获取记录详情失败: ' + cleanError(err) });
   }
 });
 
@@ -1102,7 +1145,7 @@ app.get('/api/admin/users/:userId/stats', authenticate, requireAdmin, async (req
     );
     res.json({ stats: statsArr[0] || null, user: userInfo[0] || null });
   } catch (err) {
-    res.status(500).json({ error: '获取用户统计失败: ' + err.message });
+    res.status(500).json({ error: '获取用户统计失败: ' + cleanError(err) });
   }
 });
 
@@ -1123,7 +1166,7 @@ app.get('/api/admin/top-words', authenticate, requireAdmin, async (req, res) => 
     const result = Object.values(aggregated).sort((a, b) => b.totalFrequency - a.totalFrequency);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: '获取高频错词失败: ' + err.message });
+    res.status(500).json({ error: '获取高频错词失败: ' + cleanError(err) });
   }
 });
 
@@ -1135,7 +1178,7 @@ app.get('/api/admin/writing-trends', authenticate, requireAdmin, async (req, res
     );
     res.json(writings);
   } catch (err) {
-    res.status(500).json({ error: '获取写作趋势失败: ' + err.message });
+    res.status(500).json({ error: '获取写作趋势失败: ' + cleanError(err) });
   }
 });
 
@@ -1146,7 +1189,7 @@ app.patch('/api/admin/users/:userId/role', authenticate, requireAdmin, async (re
     const updated = await sbPatch('User', `id=eq.${req.params.userId}`, { role });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: '更新用户角色失败: ' + err.message });
+    res.status(500).json({ error: '更新用户角色失败: ' + cleanError(err) });
   }
 });
 
@@ -1171,7 +1214,7 @@ app.post('/api/feedback', authenticate, async (req, res) => {
     });
     res.status(201).json(feedback);
   } catch (err) {
-    res.status(500).json({ error: '提交反馈失败: ' + err.message });
+    res.status(500).json({ error: '提交反馈失败: ' + cleanError(err) });
   }
 });
 
@@ -1182,7 +1225,7 @@ app.get('/api/feedback', authenticate, async (req, res) => {
     );
     res.json(feedbacks);
   } catch (err) {
-    res.status(500).json({ error: '获取反馈失败: ' + err.message });
+    res.status(500).json({ error: '获取反馈失败: ' + cleanError(err) });
   }
 });
 
@@ -1196,7 +1239,7 @@ app.get('/api/announcements', async (req, res) => {
     );
     res.json(announcements);
   } catch (err) {
-    res.status(500).json({ error: '获取公告失败: ' + err.message });
+    res.status(500).json({ error: '获取公告失败: ' + cleanError(err) });
   }
 });
 
@@ -1211,7 +1254,7 @@ app.get('/api/admin/feedbacks', authenticate, requireAdmin, async (req, res) => 
     const feedbacks = await sbGet('Feedback', queryStr);
     res.json(feedbacks);
   } catch (err) {
-    res.status(500).json({ error: '获取反馈列表失败: ' + err.message });
+    res.status(500).json({ error: '获取反馈列表失败: ' + cleanError(err) });
   }
 });
 
@@ -1225,7 +1268,7 @@ app.patch('/api/admin/feedbacks/:id', authenticate, requireAdmin, async (req, re
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: '回复反馈失败: ' + err.message });
+    res.status(500).json({ error: '回复反馈失败: ' + cleanError(err) });
   }
 });
 
@@ -1239,7 +1282,7 @@ app.get('/api/admin/announcements', authenticate, requireAdmin, async (req, res)
     );
     res.json(announcements);
   } catch (err) {
-    res.status(500).json({ error: '获取公告列表失败: ' + err.message });
+    res.status(500).json({ error: '获取公告列表失败: ' + cleanError(err) });
   }
 });
 
@@ -1258,7 +1301,7 @@ app.post('/api/admin/announcements', authenticate, requireAdmin, async (req, res
     });
     res.status(201).json(announcement);
   } catch (err) {
-    res.status(500).json({ error: '发布公告失败: ' + err.message });
+    res.status(500).json({ error: '发布公告失败: ' + cleanError(err) });
   }
 });
 
@@ -1272,7 +1315,7 @@ app.patch('/api/admin/announcements/:id', authenticate, requireAdmin, async (req
     const updated = await sbPatch('Announcement', `id=eq.${req.params.id}`, updates);
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: '更新公告失败: ' + err.message });
+    res.status(500).json({ error: '更新公告失败: ' + cleanError(err) });
   }
 });
 
@@ -1307,7 +1350,7 @@ app.get('/api/user/usage', authenticate, async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: '查询额度失败: ' + err.message });
+    res.status(500).json({ error: '查询额度失败: ' + cleanError(err) });
   }
 });
 
@@ -1422,7 +1465,7 @@ app.post('/api/pay/order', authenticate, async (req, res) => {
       payJsEnabled: !!(process.env.PAYJS_MCHID && process.env.PAYJS_KEY),
     });
   } catch (err) {
-    res.status(500).json({ error: '创建订单失败: ' + err.message });
+    res.status(500).json({ error: '创建订单失败: ' + cleanError(err) });
   }
 });
 
@@ -1435,7 +1478,7 @@ app.get('/api/pay/order/:id', authenticate, async (req, res) => {
     if (orders.length === 0) return res.status(404).json({ error: '订单不存在' });
     res.json(orders[0]);
   } catch (err) {
-    res.status(500).json({ error: '查询订单失败: ' + err.message });
+    res.status(500).json({ error: '查询订单失败: ' + cleanError(err) });
   }
 });
 
@@ -1469,7 +1512,7 @@ app.post('/api/pay/callback', async (req, res) => {
 
     res.send('success');
   } catch (err) {
-    console.error('支付回调失败:', err.message);
+    console.error('支付回调失败:', cleanError(err));
     res.send('fail');
   }
 });
@@ -1492,7 +1535,7 @@ app.post('/api/admin/users/:userId/plan', authenticate, requireAdmin, async (req
     });
     res.json({ message: '套餐更新成功', plan, planExpiresAt: expiresAt });
   } catch (err) {
-    res.status(500).json({ error: '更新套餐失败: ' + err.message });
+    res.status(500).json({ error: '更新套餐失败: ' + cleanError(err) });
   }
 });
 
@@ -1508,7 +1551,7 @@ app.get('/api/health', async (req, res) => {
     await sbGet('User', 'select=id&limit=1');
     res.json({ status: 'ok', database: 'connected', aiConfigured: !!process.env.AI_API_KEY });
   } catch (err) {
-    res.status(500).json({ status: 'error', database: 'disconnected', message: err.message });
+    res.status(500).json({ status: 'error', database: 'disconnected', message: cleanError(err) });
   }
 });
 
@@ -1524,7 +1567,7 @@ app.listen(PORT, async () => {
     await sbGet('User', 'select=id&limit=1');
     console.log('✅ 数据库连接正常 - server.js:848');
   } catch (err) {
-    console.error('❌ 数据库连接失败: - server.js:850', err.message);
+    console.error('❌ 数据库连接失败: - server.js:850', cleanError(err));
   }
   console.log(`\n📌 可用路由: - server.js:852`);
   console.log(`POST /api/auth/register | /api/auth/login - server.js:853`);
